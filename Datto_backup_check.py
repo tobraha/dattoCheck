@@ -5,6 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import sys
 
+# check to make sure we have API credentials; exit if not provided
 if len(sys.argv) < 3:
     print('\n[!] ERROR - Please provide the API username & password!')
     print('    Usage:  python3 {} <API username> <API password>\n'.format(sys.argv[0]))
@@ -14,6 +15,9 @@ if len(sys.argv) < 3:
 API_BASE_URI = 'https://api.datto.com/v1/bcdr/device'
 AUTH_USER = sys.argv[1]
 AUTH_PASS = sys.argv[2]
+
+## Set this to True to send the report email:
+SEND_EMAIL = False
 
 # Error/Alert threshold settings
 CHECKIN_LIMIT = 60 * 20       # threshold for device offline time 
@@ -25,8 +29,11 @@ LAST_SCREENSHOT_THRESHOLD = 60 * 60 * 48 # threshold for last screenshot taken
 MSG_BODY = []
 
 class Datto:
-    
+    """
+    Handles the session and communication with the Datto API.
+    """
     def __init__(self):
+        '''Constructor for class 'Datto' '''
         # create intial session and set parameters
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
@@ -34,7 +41,7 @@ class Datto:
         
         r = self.session.get(API_BASE_URI).json()  # test the connection
         if 'code' in r: 
-            print('[!]   Fatal Error:  "{}"'.format(r['message']))
+            print('[!]   Critical Error:  "{}"'.format(r['message']))
             sys.exit(1)
             
     def sessionClose(self):
@@ -58,7 +65,7 @@ class Datto:
             for page in range(2, totalPages+1):
                 r = self.session.get(API_BASE_URI + '?_page=' + str(page)).json()
                 devices.extend(r['items'])
-        devices = sorted(devices, key= lambda i: i['name']) # let's sort this bad boy!
+        devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
     def getAssetDetails(self,serialNumber):
@@ -77,6 +84,7 @@ def printErrors(errors, device_name):
         print(error)
         MSG_BODY.append(error)
     MSG_BODY.append('\n')    
+    
 def display_time(seconds, granularity=2):
     # from "Mr. B":
     # https://stackoverflow.com/questions/4048651/python-function-to-convert-seconds-into-minutes-hours-and-days/24542445#answer-24542445
@@ -122,6 +130,7 @@ def email_report():
 dattoAPI = Datto()
 devices = dattoAPI.getDevices()
 
+# for future use - data structure for all gathered info on appliances and assets
 results_data = {'devices' : {}}
 
 # main loop
@@ -175,6 +184,7 @@ for device in devices:
     #### AGENT CHECKS ####
     ######################
     
+    # query the API with the device S/N to get asset info
     assetDetails = dattoAPI.getAssetDetails(device['serialNumber'])
     
     for agent in assetDetails:
@@ -227,11 +237,14 @@ for device in devices:
                               format(agent['name'], display_time(timeDiff.total_seconds())))
                 
         # check status of last screenshot attempt
-        if agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == 'False':
+        if agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
             errors.append(' [-]   {}: Last screenshot attempt failed!'.format(agent['name']))
             results_data['devices'][device['name']]['assets'][agent['name']].append(' [-]   {}: Last screenshot attempt failed!'.format(agent['name']))
     if errors: printErrors(errors, device['name'])
+    if 'GLOVER' in device['name']:
+        nothing = 'nothing'
     
 dattoAPI.sessionClose()
-email_report()
+if SEND_EMAIL: 
+    email_report()
 sys.exit(0)
