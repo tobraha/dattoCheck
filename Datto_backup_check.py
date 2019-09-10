@@ -44,10 +44,6 @@ class Datto:
         if 'code' in r: 
             print('[!]   Critical Error:  "{}"'.format(r['message']))
             sys.exit(1)
-            
-    def sessionClose(self):
-        '''Close the "requests" session'''
-        return self.session.close()
     
     def getDevices(self):
         '''        
@@ -67,6 +63,7 @@ class Datto:
             for page in range(2, totalPages+1):
                 r = self.session.get(API_BASE_URI + '?_page=' + str(page)).json()
                 devices.extend(r['items'])
+                
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
@@ -79,13 +76,16 @@ class Datto:
         '''
         return self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
         
+    def sessionClose(self):
+        '''Close the "requests" session'''
+        return self.session.close()    
+        
 def printErrors(errors, device_name):
-    print('--DEVICE: {}'.format(device_name))
-    MSG_BODY.append('--DEVICE: {}'.format(device_name))
+    print('\n--DEVICE: {}'.format(device_name))
+    MSG_BODY.append('\n--DEVICE: {}'.format(device_name))
     for error in errors:
         print(error)
         MSG_BODY.append(error)
-    MSG_BODY.append('\n')    
     
 def display_time(seconds, granularity=2):
     # from "Mr. B":
@@ -116,7 +116,7 @@ def email_report():
     # Email heads
     msg = MIMEMultipart()
     msg['Subject'] = 'Daily Datto Check'
-    msg['From'] = 'datto-check@example.com'
+    msg['From'] = 'datto-check@domain.com'
     msg['To'] = 'username@example.com'
     #msg['Cc'] = ', '.join(config.EMAIL_CC)
     msg.attach(MIMEText('\n'.join(MSG_BODY)))
