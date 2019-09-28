@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import requests, datetime, sys
+
 import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -8,7 +9,7 @@ from email.mime.text import MIMEText
 
 # check to make sure we have API credentials; exit if not provided
 if len(sys.argv) < 3:
-    print('\n[!] ERROR - Please provide the API username & password!')
+    print('\n[!] Please provide the API username & password!')
     print('    Usage:  python3 {} <API username> <API password>\n'.format(sys.argv[0]))
     sys.exit(1)
     
@@ -34,7 +35,7 @@ class Datto:
     Handles the session and communication with the Datto API.
     """
     def __init__(self):
-        '''Constructor for class 'Datto' '''
+        '''Constructor - initialize Python Requests Session'''
         # create intial session and set parameters
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
@@ -136,114 +137,117 @@ devices = dattoAPI.getDevices()
 results_data = {'devices' : {}}
 
 # main loop
-for device in devices:
-    
-    if device['hidden']: continue # skip hidden devices in the portal    
-    
-    results_data['devices'][device['name']] = {}
-    results_data['devices'][device['name']]["errors"] = []
-    results_data['devices'][device['name']]['assets'] = {}
-    errors = []
-    
-    #######################
-    ###  DEVICE CHECKS  ###
-    #######################
-    # Last checkin time
-    t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
-    device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
-    now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
-    timeDiff = now - device_checkin
-
-    # Check to see if there are any active tickets
-    if device['activeTickets']:
-        error_text = '[-]   Appliance has {} active {}'.format(\
-            device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
-        results_data['devices'][device['name']]['errors'].append(error_text)        
-        errors.append(error_text)    
-
-    if timeDiff.total_seconds() >= CHECKIN_LIMIT:
-        error_text = " [!] CRITICAL -  Last checkin was {} ago!".format(display_time(timeDiff.total_seconds()))
-        errors.append(error_text)
-        results_data['devices'][device['name']]['errors'].append(error_text)
-        printErrors(errors, device['name'])
-        continue  # do not proceed if the device is offline; go to next device
-    
-    # Check Local Disk Usage
-    storage_available = int(device['localStorageAvailable']['size'])
-    storage_used = int(device['localStorageUsed']['size'])    
-    total_space = storage_available + storage_used
-    available_pct = float("{0:.2f}".format(storage_used / total_space)) * 100
-    
-    if available_pct > STORAGE_PCT_THRESHOLD:
-        error_text = ' [!]   Local storage exceeds {}%!  Current Usage: {}%'.\
-                      format(str(STORAGE_PCT_THRESHOLD), str(available_pct))
-        results_data['devices'][device['name']]['errors'].append(error_text)
-        errors.append(error_text)                          
+try:      # catching KeyboardInterrupt
+    for device in devices:
         
-    ######################
-    #### AGENT CHECKS ####
-    ######################
+        if device['hidden']: continue # skip hidden devices in the portal    
+        
+        results_data['devices'][device['name']] = {}
+        results_data['devices'][device['name']]["errors"] = []
+        results_data['devices'][device['name']]['assets'] = {}
+        errors = []
+        
+        #######################
+        ###  DEVICE CHECKS  ###
+        #######################
+        # Last checkin time
+        t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
+        device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
+        now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
+        timeDiff = now - device_checkin
     
-    # query the API with the device S/N to get asset info
-    assetDetails = dattoAPI.getAssetDetails(device['serialNumber'])
+        # Check to see if there are any active tickets
+        if device['activeTickets']:
+            error_text = '[-]   Appliance has {} active {}'.format(\
+                device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
+            results_data['devices'][device['name']]['errors'].append(error_text)        
+            errors.append(error_text)    
     
-    for agent in assetDetails:
-        if agent['isArchived']: continue
-        if agent['isPaused']: continue
+        if timeDiff.total_seconds() >= CHECKIN_LIMIT:
+            error_text = " [!] CRITICAL -  Last checkin was {} ago!".format(display_time(timeDiff.total_seconds()))
+            errors.append(error_text)
+            results_data['devices'][device['name']]['errors'].append(error_text)
+            printErrors(errors, device['name'])
+            continue  # do not proceed if the device is offline; go to next device
         
-        results_data['devices'][device['name']]['assets'][agent['name']] = []
+        # Check Local Disk Usage
+        storage_available = int(device['localStorageAvailable']['size'])
+        storage_used = int(device['localStorageUsed']['size'])    
+        total_space = storage_available + storage_used
+        available_pct = float("{0:.2f}".format(storage_used / total_space)) * 100
         
-        # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
-        lastBackupTime = datetime.datetime.fromtimestamp(agent['lastSnapshot'], datetime.timezone.utc)
-        now = datetime.datetime.now(datetime.timezone.utc)
-        timeDiff = now - lastBackupTime
+        if available_pct > STORAGE_PCT_THRESHOLD:
+            error_text = ' [!]   Local storage exceeds {}%!  Current Usage: {}%'.\
+                          format(str(STORAGE_PCT_THRESHOLD), str(available_pct))
+            results_data['devices'][device['name']]['errors'].append(error_text)
+            errors.append(error_text)                          
+            
+        ######################
+        #### AGENT CHECKS ####
+        ######################
         
-        if timeDiff.total_seconds() > LAST_BACKUP_THRESHOLD:
-            try:
-                if agent['backups'][0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
-                    error_text = ' [!]   {}: Last scheduled backup failed; last backup was {} ago\n       -->  "{}"'.format(\
-                        agent['name'], 
-                        display_time(timeDiff.total_seconds()), 
-                        agent['backups'][0]['backup']['errorMessage'])
+        # query the API with the device S/N to get asset info
+        assetDetails = dattoAPI.getAssetDetails(device['serialNumber'])
+        
+        for agent in assetDetails:
+            if agent['isArchived']: continue
+            if agent['isPaused']: continue
+            
+            results_data['devices'][device['name']]['assets'][agent['name']] = []
+            
+            # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
+            lastBackupTime = datetime.datetime.fromtimestamp(agent['lastSnapshot'], datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.timezone.utc)
+            timeDiff = now - lastBackupTime
+            
+            if timeDiff.total_seconds() > LAST_BACKUP_THRESHOLD:
+                try:
+                    if agent['backups'][0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
+                        error_text = ' [!]   {}: Last scheduled backup failed; last backup was {} ago\n       -->  "{}"'.format(\
+                            agent['name'], 
+                            display_time(timeDiff.total_seconds()), 
+                            agent['backups'][0]['backup']['errorMessage'])
+                        errors.append(error_text)
+                        results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
+                except IndexError:
+                    error_text = ' [-]   {}: does not seem to have any backups!'.format(agent['name'])
                     errors.append(error_text)
                     results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-            except IndexError:
-                error_text = ' [-]   {}: does not seem to have any backups!'.format(agent['name'])
+                    
+            # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
+            if not agent['latestOffsite']:
+                error_text = ' [-]   {}: no off-site backup points'.format(agent['name'])
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-                
-        # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
-        if not agent['latestOffsite']:
-            error_text = ' [-]   {}: no off-site backup points'.format(agent['name'])
-            errors.append(error_text)
-            results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-        else:
-            lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
-            timeDiff = now - lastOffsite
-            if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
-                error_text = ' [!]   {}: Last off-site was {} ago'.\
-                              format(agent['name'], display_time(timeDiff.total_seconds()))
+            else:
+                lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
+                timeDiff = now - lastOffsite
+                if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
+                    error_text = ' [!]   {}: Last off-site was {} ago'.\
+                                  format(agent['name'], display_time(timeDiff.total_seconds()))
+                    errors.append(error_text)
+                    results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
+                    
+            # check time of last screenshot
+            if agent['type'] == 'agent' and agent['lastScreenshotAttempt']:
+                last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
+                timeDiff = now - last_screenshot
+                if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
+                    error_text = ' [!]   {}: Last screenshot attempt was {} ago!'.\
+                                  format(agent['name'], display_time(timeDiff.total_seconds()))
+                    errors.append(error_text)
+                    results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
+                    
+            # check status of last screenshot attempt
+            if agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
+                error_text = ' [-]   {}: Last screenshot attempt failed!'.format(agent['name'])
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-                
-        # check time of last screenshot
-        if agent['type'] == 'agent' and agent['lastScreenshotAttempt']:
-            last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
-            timeDiff = now - last_screenshot
-            if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
-                error_text = ' [!]   {}: Last screenshot attempt was {} ago!'.\
-                              format(agent['name'], display_time(timeDiff.total_seconds()))
-                errors.append(error_text)
-                results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-                
-        # check status of last screenshot attempt
-        if agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
-            error_text = ' [-]   {}: Last screenshot attempt failed!'.format(agent['name'])
-            errors.append(error_text)
-            results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-    if errors: printErrors(errors, device['name'])
-    
-dattoAPI.sessionClose()
-if SEND_EMAIL: 
-    email_report()
-sys.exit(0)
+        if errors: printErrors(errors, device['name'])
+        
+    dattoAPI.sessionClose()
+    if SEND_EMAIL: 
+        email_report()
+    sys.exit(0)
+except KeyboardInterrupt:
+    sys.exit(dattoAPI.sessionClose())
