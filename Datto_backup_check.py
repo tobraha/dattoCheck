@@ -245,7 +245,7 @@ try:      # catch KeyboardInterrupt
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
 
             # check local verification and report any errors
-            if agent['type'] == 'agent' and len(agent['backups'][0]['localVerification']['errors']):
+            if agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
                 for error in agent['backups'][0]['localVerification']['errors']:
                     errors.append(' [-]   {}: Local Verification Failure!\n       --> {}\n       --> {}'.format(agent['name'], 
                                                                                                        error['errorType'], 
