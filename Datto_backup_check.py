@@ -137,7 +137,7 @@ devices = dattoAPI.getDevices()
 results_data = {'devices' : {}}
 
 # main loop
-try:      # catching KeyboardInterrupt
+try:      # catch KeyboardInterrupt
     for device in devices:
         
         if device['hidden']: continue # skip hidden devices in the portal    
@@ -158,7 +158,7 @@ try:      # catching KeyboardInterrupt
     
         # Check to see if there are any active tickets
         if device['activeTickets']:
-            error_text = '[-]   Appliance has {} active {}'.format(\
+            error_text = ' [-]   Appliance has {} active {}'.format(\
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
             results_data['devices'][device['name']]['errors'].append(error_text)        
             errors.append(error_text)    
@@ -243,6 +243,14 @@ try:      # catching KeyboardInterrupt
                 error_text = ' [-]   {}: Last screenshot attempt failed!'.format(agent['name'])
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
+
+            # check local verification and report any errors
+            if agent['type'] == 'agent' and len(agent['backups'][0]['localVerification']['errors']):
+                for error in agent['backups'][0]['localVerification']['errors']:
+                    errors.append(' [-]   {}: Local Verification Failure!\n       --> {}\n       --> {}'.format(agent['name'], 
+                                                                                                       error['errorType'], 
+                                                                                                       error['errorMessage']))
+
         if errors: printErrors(errors, device['name'])
         
     dattoAPI.sessionClose()
