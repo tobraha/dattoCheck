@@ -82,8 +82,9 @@ class Datto:
         return self.session.close()    
         
 def printErrors(errors, device_name):
-    print('\n--DEVICE: {}'.format(device_name))
-    MSG_BODY.append('\n--DEVICE: {}'.format(device_name))
+    header = '\n--DEVICE: {}'.format(device_name)
+    print(header)
+    MSG_BODY.append(header)
     for error in errors:
         print(error)
         MSG_BODY.append(error)
@@ -125,7 +126,7 @@ def email_report():
     # Send email
     s = smtplib.SMTP(host='<Insert MX Endpoint>', port=25)
     s.starttls()
-    #s.login(config.EMAIL_FROM, config.EMAIL_PASSWD)
+    #s.login(EMAIL_FROM, EMAIL_PASSWD)
     s.send_message(msg)
     s.quit()
     return
@@ -150,18 +151,19 @@ try:      # catch KeyboardInterrupt
         #######################
         ###  DEVICE CHECKS  ###
         #######################
-        # Last checkin time
-        t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
-        device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
-        now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
-        timeDiff = now - device_checkin
-    
+
         # Check to see if there are any active tickets
         if device['activeTickets']:
             error_text = ' [-]   Appliance has {} active {}'.format(\
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
             results_data['devices'][device['name']]['errors'].append(error_text)        
-            errors.append(error_text)    
+            errors.append(error_text)
+
+        # Last checkin time
+        t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
+        device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
+        now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
+        timeDiff = now - device_checkin
     
         if timeDiff.total_seconds() >= CHECKIN_LIMIT:
             error_text = " [!] CRITICAL -  Last checkin was {} ago!".format(display_time(timeDiff.total_seconds()))
@@ -245,11 +247,14 @@ try:      # catch KeyboardInterrupt
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
 
             # check local verification and report any errors
-            if agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
-                for error in agent['backups'][0]['localVerification']['errors']:
-                    errors.append(' [-]   {}: Local Verification Failure!\n       --> {}\n       --> {}'.format(agent['name'], 
-                                                                                                       error['errorType'], 
-                                                                                                       error['errorMessage']))
+            try:
+                if agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
+                    for error in agent['backups'][0]['localVerification']['errors']:
+                        errors.append(' [-]   {}: Local Verification Failure!\n       --> {}\n       --> {}'.format(agent['name'],
+                                                                                                           error['errorType'],
+                                                                                                           error['errorMessage']))
+            except:
+                print('-- [!] -- Error checking local verification for agent "{}".  Moving on!'.format(agent['name']))
 
         if errors: printErrors(errors, device['name'])
         
@@ -257,5 +262,5 @@ try:      # catch KeyboardInterrupt
     if SEND_EMAIL: 
         email_report()
     sys.exit(0)
-except KeyboardInterrupt:
+except:
     sys.exit(dattoAPI.sessionClose())
