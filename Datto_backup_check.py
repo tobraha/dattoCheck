@@ -2,11 +2,6 @@
 
 import requests, datetime, sys
 
-import smtplib
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
 # check to make sure we have API credentials; exit if not provided
 if len(sys.argv) < 3:
     print('\n[!] Please provide the API username & password!')
@@ -259,8 +254,14 @@ try:      # catch KeyboardInterrupt
         if errors: printErrors(errors, device['name'])
         
     dattoAPI.sessionClose()
-    if SEND_EMAIL: 
+    if SEND_EMAIL:
+        import smtplib
+        from email.mime.application import MIMEApplication
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
         email_report()
+
     sys.exit(0)
 except:
     sys.exit(dattoAPI.sessionClose())
