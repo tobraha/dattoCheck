@@ -190,6 +190,8 @@ try:      # catch KeyboardInterrupt
             if agent['isArchived']: continue
             if agent['isPaused']: continue
             
+            BACKUP_FAILURE = False
+
             results_data['devices'][device['name']]['assets'][agent['name']] = []
             
             # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
@@ -204,6 +206,7 @@ try:      # catch KeyboardInterrupt
                             agent['name'], 
                             display_time(timeDiff.total_seconds()), 
                             agent['backups'][0]['backup']['errorMessage'])
+                        BACKUP_FAILURE = True
                         errors.append(error_text)
                         results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
                 except IndexError:
@@ -212,7 +215,7 @@ try:      # catch KeyboardInterrupt
                     results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
                     
             # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
-            if not agent['latestOffsite']:
+            if not agent['latestOffsite'] and not BACKUP_FAILURE:
                 error_text = ' [-]   {}: no off-site backup points'.format(agent['name'])
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
@@ -220,13 +223,14 @@ try:      # catch KeyboardInterrupt
                 lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
                 timeDiff = now - lastOffsite
                 if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
-                    error_text = ' [!]   {}: Last off-site was {} ago'.\
-                                  format(agent['name'], display_time(timeDiff.total_seconds()))
-                    errors.append(error_text)
-                    results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
+                    if not BACKUP_FAILURE:
+                        error_text = ' [!]   {}: Last off-site was {} ago'.\
+                                      format(agent['name'], display_time(timeDiff.total_seconds()))
+                        errors.append(error_text)
+                        results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
                     
             # check time of last screenshot
-            if agent['type'] == 'agent' and agent['lastScreenshotAttempt']:
+            if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
                 last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
                 timeDiff = now - last_screenshot
                 if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
@@ -236,14 +240,14 @@ try:      # catch KeyboardInterrupt
                     results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
                     
             # check status of last screenshot attempt
-            if agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
+            if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
                 error_text = ' [-]   {}: Last screenshot attempt failed!'.format(agent['name'])
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
 
             # check local verification and report any errors
             try:
-                if agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
+                if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
                     for error in agent['backups'][0]['localVerification']['errors']:
                         errors.append(' [-]   {}: Local Verification Failure!\n       --> {}\n       --> {}'.format(agent['name'],
                                                                                                            error['errorType'],
