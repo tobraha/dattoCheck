@@ -215,19 +215,18 @@ try:      # catch KeyboardInterrupt
                     results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
                     
             # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
-            if not agent['latestOffsite'] and not BACKUP_FAILURE:
+            if not agent['latestOffsite']:
                 error_text = ' [-]   {}: no off-site backup points'.format(agent['name'])
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
-            else:
+            elif not BACKUP_FAILURE:
                 lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
                 timeDiff = now - lastOffsite
                 if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
-                    if not BACKUP_FAILURE:
-                        error_text = ' [!]   {}: Last off-site was {} ago'.\
-                                      format(agent['name'], display_time(timeDiff.total_seconds()))
-                        errors.append(error_text)
-                        results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
+                    error_text = ' [!]   {}: Last off-site was {} ago'.\
+                                  format(agent['name'], display_time(timeDiff.total_seconds()))
+                    errors.append(error_text)
+                    results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
                     
             # check time of last screenshot
             if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
@@ -267,5 +266,5 @@ try:      # catch KeyboardInterrupt
         email_report()
 
     sys.exit(0)
-except:
+except KeyboardInterrupt:
     sys.exit(dattoAPI.sessionClose())
