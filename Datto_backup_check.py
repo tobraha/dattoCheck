@@ -1,6 +1,13 @@
 #!/usr/bin/python3
-from datetime import datetime
-import requests, sys
+'''
+//TODO: 
+    1. Consolidate errors per agent if there are multiple
+    2. Create new email format for errors; use table to list errors in order of severity
+    3. Add screenshot download using XML API; add to email.
+    4. Implement argparse
+'''
+
+import requests, sys, datetime
 
 # check to make sure we have API credentials; exit if not provided
 if len(sys.argv) < 3:
@@ -163,8 +170,8 @@ try:      # catch KeyboardInterrupt
 
         # Last checkin time
         t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
-        device_checkin = datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
-        now = datetime.now(datetime.timezone.utc) # make 'now' timezone aware
+        device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
+        now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
         timeDiff = now - device_checkin
     
         if timeDiff.total_seconds() >= CHECKIN_LIMIT:
@@ -202,8 +209,8 @@ try:      # catch KeyboardInterrupt
             results_data['devices'][device['name']]['assets'][agent['name']] = []
             
             # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
-            lastBackupTime = datetime.fromtimestamp(agent['lastSnapshot'], datetime.timezone.utc)
-            now = datetime.now(datetime.timezone.utc)
+            lastBackupTime = datetime.datetime.fromtimestamp(agent['lastSnapshot'], datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.timezone.utc)
             timeDiff = now - lastBackupTime
             
             if timeDiff.total_seconds() > LAST_BACKUP_THRESHOLD:
@@ -227,7 +234,7 @@ try:      # catch KeyboardInterrupt
                 errors.append(error_text)
                 results_data['devices'][device['name']]['assets'][agent['name']].append(error_text)
             elif not BACKUP_FAILURE:
-                lastOffsite = datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
+                lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
                 timeDiff = now - lastOffsite
                 if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
                     error_text = ' [!]   {}: Last off-site was {} ago'.\
@@ -237,7 +244,7 @@ try:      # catch KeyboardInterrupt
                     
             # check time of last screenshot
             if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
-                last_screenshot = datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
+                last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
                 timeDiff = now - last_screenshot
                 if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
                     error_text = ' [!]   {}: Last screenshot attempt was {} ago!'.\
