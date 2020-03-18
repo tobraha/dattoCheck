@@ -132,7 +132,7 @@ def email_report():
     msg['From'] = 'datto-check@domain.com'
     msg['To'] = 'username@example.com'
     #msg['Cc'] = ', '.join(config.EMAIL_CC)
-    msg.attach(MIMEText('\n'.join(MSG_BODY)))
+    msg.attach(MIMEText(MSG_BODY, 'html'))
 
     # Send email
     s = smtplib.SMTP(host='<Insert MX Endpoint>', port=25)
