@@ -124,6 +124,8 @@ def email_report():
     https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-office-3
     """
 
+    d = datetime.datetime.today()
+
     # Email heads
     msg = MIMEMultipart()
     msg['Subject'] = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
