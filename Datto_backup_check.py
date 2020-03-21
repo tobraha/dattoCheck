@@ -219,7 +219,7 @@ def email_report():
     s = smtplib.SMTP(host=args.mx_endpoint, port=args.smtp_port)
     if args.starttls:
         s.starttls()
-    if args.EMAIL_PW:
+    if args.email_pw:
         s.login(args.email_from, args.email_pw)
     s.send_message(msg)
     s.quit()
