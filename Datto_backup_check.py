@@ -30,8 +30,9 @@ parser.add_argument('--send-email', help='Set this flag to send an email.  Below
 parser.add_argument('--email-to', help='Email address to send message to', required=True)
 parser.add_argument('--email-cc',help='(OPTIONAL) Email address to CC')
 parser.add_argument('--email-from', help='Email address to send message from', required=True)
+parser.add_argument('--email-pw', help='Password to use for authentication')
 parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email', required=True)
-parser.add_argument('--smtp-port', help='TCP port to use when sending the email', choices=['25', '587'], default='25')
+parser.add_argument('--smtp-port', help='TCP port to use when sending the email', type=int, choices=['25', '587'], default='25')
 parser.add_argument('--starttls', help='Specify whether to use STARTTLS or not', action='store_true')
 
 # Parsing and using the arguments
@@ -205,15 +206,18 @@ def email_report():
     # Email heads
     msg = MIMEMultipart()
     msg['Subject'] = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
-    msg['From'] = 'datto-check@domain.com'
-    msg['To'] = 'username@example.com'
-    #msg['Cc'] = ', '.join(config.EMAIL_CC)
+    msg['From'] = args.EMAIL_FROM
+    msg['To'] = ', '.join(args.EMAIL_TO)
+    if args.EMAIL_CC:
+        msg['Cc'] = ', '.join(args.EMAIL_CC)
     msg.attach(MIMEText(MSG_BODY, 'html'))
 
     # Send email
-    s = smtplib.SMTP(host='<Insert MX Endpoint>', port=25)
-    s.starttls()
-    #s.login(EMAIL_FROM, EMAIL_PASSWD)
+    s = smtplib.SMTP(host=args.MX_ENDPOINT, port=args.smtp_port)
+    if args.STARTTLS:
+        s.starttls()
+    if args.EMAIL_PW:
+        s.login(args.EMAIL_FROM, args.EMAIL_PW)
     s.send_message(msg)
     s.quit()
     return
