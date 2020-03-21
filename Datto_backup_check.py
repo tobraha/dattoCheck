@@ -27,8 +27,11 @@ parser.add_argument('XML_API_KEY', help='Datto XML API Key')
 
 # Optional arguments
 parser.add_argument('--send-email', help='Set this flag to send an email.  Below parameters required if set', action='store_true')
-parser.add_argument('--email-to', help='Email address to send message to', required=True)
-parser.add_argument('--email-cc',help='(OPTIONAL) Email address to CC')
+parser.add_argument('--email-to', help='Email address to send message to. Use more than once for multiple recipients.',
+                    action='append',
+                    required=True)
+parser.add_argument('--email-cc',help='(OPTIONAL) Email address to CC. Use more than once for multiple recipients.',
+                    action='append')
 parser.add_argument('--email-from', help='Email address to send message from', required=True)
 parser.add_argument('--email-pw', help='Password to use for authentication')
 parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email', required=True)
@@ -206,18 +209,18 @@ def email_report():
     # Email heads
     msg = MIMEMultipart()
     msg['Subject'] = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
-    msg['From'] = args.EMAIL_FROM
-    msg['To'] = ', '.join(args.EMAIL_TO)
-    if args.EMAIL_CC:
-        msg['Cc'] = ', '.join(args.EMAIL_CC)
+    msg['From'] = args.email_from
+    msg['To'] = ', '.join(args.email_to)
+    if args.email_cc:
+        msg['Cc'] = ', '.join(args.email_cc)
     msg.attach(MIMEText(MSG_BODY, 'html'))
 
     # Send email
-    s = smtplib.SMTP(host=args.MX_ENDPOINT, port=args.smtp_port)
-    if args.STARTTLS:
+    s = smtplib.SMTP(host=args.mx_endpoint, port=args.smtp_port)
+    if args.starttls:
         s.starttls()
     if args.EMAIL_PW:
-        s.login(args.EMAIL_FROM, args.EMAIL_PW)
+        s.login(args.email_from, args.email_pw)
     s.send_message(msg)
     s.quit()
     return
