@@ -1,27 +1,52 @@
 #!/usr/bin/python3
 '''
 //TODO: 
-    1. Consolidate errors per agent if there are multiple
-    2. Create new email format for errors; use table to list errors in order of severity
-    3. Add screenshot download using XML API; add to email.
-    4. Implement argparse
+    1. Add screenshot download using XML API; add to email.
 '''
 
-import requests, sys, datetime
+import requests
+import sys
+import datetime
+import argparse
+from xml.etree import ElementTree
 
-# check to make sure we have API credentials; exit if not provided
-if len(sys.argv) < 3:
-    print('\n[!] Please provide the API username & password!')
-    print('    Usage:  python3 {} <API username> <API password>\n'.format(sys.argv[0]))
-    sys.exit(1)
+__authors__ = ["Tommy Harris"]
+__date__ = '08SEP2019'
+__description__ = '''Using the Datto API, get information on current status of backups, screenshots, local verification,\
+and device issues.
+
+To send the results as an email, provide the optional email parameters.'''
+
+parser = argparse.ArgumentParser(description=__description__,
+                                 epilog='Developed by {} on {}'.format(", ".join(__authors__), __date__ ))
+
+# Add positional arguments
+parser.add_argument('AUTH_USER', help='Datto API User (REST API Public Key)')
+parser.add_argument('AUTH_PASS', help='Datto API Password (REST API Secret Key')
+parser.add_argument('XML_API_KEY', help='Datto XML API Key')
+
+# Optional arguments
+parser.add_argument('--send-email', help='Set this flag to send an email.  Below parameters required if set', action='store_true')
+parser.add_argument('--email-to', help='Email address to send message to', required=True)
+parser.add_argument('--email-cc',help='(OPTIONAL) Email address to CC')
+parser.add_argument('--email-from', help='Email address to send message from', required=True)
+parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email', required=True)
+parser.add_argument('--smtp-port', help='TCP port to use when sending the email', choices=['25', '587'], default='25')
+parser.add_argument('--starttls', help='Specify whether to use STARTTLS or not', action='store_true')
+
+# Parsing and using the arguments
+args = parser.parse_args()
     
 # Global Variables
 API_BASE_URI = 'https://api.datto.com/v1/bcdr/device'
-AUTH_USER = sys.argv[1]
-AUTH_PASS = sys.argv[2]
+XML_API_URI = 'https://portal.dattobackup.com/external/api/xml/status/{0}'.format(args.XML_API_KEY)
+AUTH_USER = args.AUTH_USER
+AUTH_PASS = args.AUTH_PASS
 
 ## Set this to True to send the report email:
 SEND_EMAIL = False
+if args.send_email:
+    SEND_EMAIL = True
 
 # Error/Alert threshold settings
 CHECKIN_LIMIT = 60 * 20                  # threshold for device offline time 
@@ -35,7 +60,7 @@ class Datto:
     Handles the session and communication with the Datto API.
     """
     def __init__(self):
-        '''Constructor - initialize Python Requests Session'''
+        '''Constructor - initialize Python Requests Session and get XML API data'''
         # create intial session and set parameters
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
@@ -43,7 +68,7 @@ class Datto:
         
         r = self.session.get(API_BASE_URI).json()  # test the connection
         if 'code' in r: 
-            print('[!]   Critical Error:  "{}"'.format(r['message']))
+            print('[!]   Critical Failure:  "{}"'.format(r['message']))
             sys.exit(1)
     
     def getDevices(self):
@@ -84,8 +109,6 @@ class Datto:
 def appendError(error_detail):
     '''Append an error to the results_data list.
     
-    Arguments: 
-        device_name - Name of the Datto Appliance
         error_detail - List of error data. 
             First and second items are error level, and device name
     '''
@@ -102,28 +125,35 @@ def buildEmailBody(results_data):
         MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
         MSG_BODY += '<tr><th>Appliance</th><th>Error Type</th><th>Error Details</th></tr>'
         for error in results_data['critical']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</tr>'
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
             
-    if results_data['alert']:
-        MSG_BODY += '<h1>ALERTS</h1><table>\
-        <tr><th>Appliance</th><th>Agent/Share</th><th>Error Type</th><th>Error Details</th></tr>'
-        for error in results_data['alert']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</tr>'
+    if results_data['backup_error']:
+        MSG_BODY += '<h1>Backup Errors</h1><table>\
+        <tr><th>Appliance</th><th>Agent/Share</th><th>Last Backup</th><th>Error Details</th></tr>'
+        for error in results_data['backup_error']:
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
         MSG_BODY += '</table>'
         
-    if results_data['error']:
-        MSG_BODY += '<h1>ERRORS</h1><table>\
+    if results_data['offsite_error']:
+        MSG_BODY += '<h1>Off-Site Sync Issues</h1><table>\
         <tr><th>Appliance</th><th>Agent/Share</th><th>Error Details</th></tr>'
-        for error in results_data['error']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</tr>'
+        for error in results_data['offsite_error']:
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+        MSG_BODY += '</table>'
+
+    if results_data['screenshot_error']:
+        MSG_BODY += '<h1>Screenshot Failures</h1><table>\
+        <tr><th>Appliance</th><th>Agent</th><th>Screenshot</th></tr>'
+        for error in results_data['screenshot_error']:
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
         
-    if results_data['info']:
-        MSG_BODY += '<h1>INFO</h1><table>\
-        <tr><th>Appliance</th><th>Agent/Share</th><th>Error Details</th></tr>'
-        for error in results_data['info']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</tr>'
+    if results_data['informational']:
+        MSG_BODY += '<h1>Informational</h1><table>\
+        <tr><th>Appliance</th><th>Agent/Share</th><th>Details</th></tr>'
+        for error in results_data['informational']:
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
         
     MSG_BODY += '</body></html>'    
@@ -165,10 +195,12 @@ def email_report():
     
     If using Office 365 and only sending to recipients in the 
     same domain, it's best to use the "direct send" method because
-    authentication is not required. See Option 2 here:
+    authentication is not required. See Option 2 here (you'll need a send connector for this):
     
     https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-office-3
     """
+
+    d = datetime.datetime.today()
 
     # Email heads
     msg = MIMEMultipart()
@@ -176,7 +208,7 @@ def email_report():
     msg['From'] = 'datto-check@domain.com'
     msg['To'] = 'username@example.com'
     #msg['Cc'] = ', '.join(config.EMAIL_CC)
-    msg.attach(MIMEText('\n'.join(MSG_BODY)))
+    msg.attach(MIMEText(MSG_BODY, 'html'))
 
     # Send email
     s = smtplib.SMTP(host='<Insert MX Endpoint>', port=25)
@@ -191,9 +223,11 @@ devices = dattoAPI.getDevices()
 
 # initialize results_data, used for generating html report
 results_data = {'critical' : [],
-                'alert' : [],
-                'error' : [],
-                'info' : []
+                'backup_error' : [],
+                'offsite_error' : [],
+                'screenshot_error' : [],
+                'verification_error' : [],
+                'informational' : []
                 }
 
 # main loop
@@ -213,7 +247,7 @@ try:      # catch KeyboardInterrupt
         if device['activeTickets']:
             error_text = 'Appliance has {} active {}'.format(\
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
-            appendError(['info', device['name'], 'N/A', error_text])        
+            appendError(['informational', device['name'], 'N/A', error_text])
             errors.append(error_text)
 
         # Last checkin time
@@ -223,9 +257,9 @@ try:      # catch KeyboardInterrupt
         timeDiff = now - device_checkin
     
         if timeDiff.total_seconds() >= CHECKIN_LIMIT:
-            error_text = "Last checkin was {} ago!".format(display_time(timeDiff.total_seconds()))
+            error_text = "Last checkin was {} ago.".format(display_time(timeDiff.total_seconds()))
             errors.append(error_text)
-            appendError(['critical', device['name'], 'Device Offline',error_text])
+            appendError(['critical', device['name'], 'Appliance Offline',error_text])
             printErrors(errors, device['name'])
             continue  # do not proceed if the device is offline; go to next device
         
@@ -262,44 +296,49 @@ try:      # catch KeyboardInterrupt
             if timeDiff.total_seconds() > LAST_BACKUP_THRESHOLD:
                 try:
                     if agent['backups'][0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
+                        backup_error = agent['backups'][0]['backup']['errorMessage']
                         error_text = 'Last scheduled backup failed; last backup was {} ago. Error: "{}"'.format(\
                             display_time(timeDiff.total_seconds()), 
-                            agent['backups'][0]['backup']['errorMessage'])
+                            backup_error)
                         BACKUP_FAILURE = True
                         errors.append(error_text)
-                        appendError(['alert', device['name'], agent['name'], 'Backup Failure', error_text])
+                        appendError(['backup_error',
+                                     device['name'],
+                                     agent['name'],
+                                     '{} ago.'.format(display_time(timeDiff.total_seconds())),
+                                     backup_error])
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
                     errors.append(error_text)
-                    appendError(['info', device['name'], agent['name'], error_text])
+                    appendError(['informational', device['name'], agent['name'], error_text])
                     
             # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
             if not agent['latestOffsite']:
                 error_text = 'No off-site backup points exist'
                 errors.append(error_text)
-                appendError(['info', device['name'], agent['name'], error_text])
+                appendError(['informational', device['name'], agent['name'], error_text])
             elif not BACKUP_FAILURE:
                 lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
                 timeDiff = now - lastOffsite
                 if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
-                    error_text = 'Last off-site was {} ago'.format(display_time(timeDiff.total_seconds()))
+                    error_text = 'Last off-site: {} ago'.format(display_time(timeDiff.total_seconds()))
                     errors.append(error_text)
-                    appendError(['error', device['name'], agent['name'], error_text])
+                    appendError(['offsite_error', device['name'], agent['name'], error_text])
                     
             # check time of last screenshot
             if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
                 last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
                 timeDiff = now - last_screenshot
                 if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
-                    error_text = 'Last screenshot attempt was {} ago.'.format(display_time(timeDiff.total_seconds()))
+                    error_text = 'Last screenshot was {} ago.'.format(display_time(timeDiff.total_seconds()))
                     errors.append(error_text)
-                    appendError(['alert', device['name'], agent['name'], 'No recent screenshot', error_text])
+                    appendError(['screenshot_error', device['name'], agent['name'], error_text, ''])
                     
             # check status of last screenshot attempt
             if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
                 error_text = 'Last screenshot attempt failed!'
                 errors.append(error_text)
-                appendError(['alert', device['name'], agent['name'], 'Screenshot Failure', error_text])
+                appendError(['screenshot_error', device['name'], agent['name'], '###--COMING SOON--###'])
 
             # check local verification and report any errors
             try:
@@ -307,7 +346,7 @@ try:      # catch KeyboardInterrupt
                     for error in agent['backups'][0]['localVerification']['errors']:
                         error_text = 'Local Verification Failure!\n{}\n{}'.format(error['errorType'],error['errorMessage'])
                         errors.append(error_text)
-                        appendError(['error', device['name'], agent['name'], error_text])
+                        appendError(['verification_error', device['name'], agent['name'], error['errorType'], error['errorMessage']])
             except Exception as e:
                 print('\nException Caught: {}'.format(e))
                 print('-- [!] -- Error checking local verification for agent "{}".  Moving on!'.format(agent['name']))
