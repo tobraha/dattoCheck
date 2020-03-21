@@ -156,8 +156,12 @@ def buildEmailBody(results_data):
     if results_data['verification_error']:
         MSG_BODY += '<h1>Local Verification Issues</h1><table>\
         <tr><th>Appliance</th><th>Agent</th><th>Error Type</th><th>Error Message</th></tr>'
+        if error[4]:
+            error_message = error[4]
+        else:
+            error_message = '<none>'
         for error in results_data['verification_error']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error_message + '</td></tr>'
         MSG_BODY += '</table>'
 
     if results_data['informational']:
