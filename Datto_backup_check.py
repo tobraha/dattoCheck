@@ -8,12 +8,12 @@ import requests
 import sys
 import datetime
 import argparse
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
-__authors__ = ["Tommy Harris"]
-__date__ = '08SEP2019'
+__authors__ = ['Tommy Harris', 'Ryan Shoemaker']
+__date__ = 'September 8, 2019'
 __description__ = '''Using the Datto API, get information on current status of backups, screenshots, local verification,\
-and device issues.
+and device issues.\n
 
 To send the results as an email, provide the optional email parameters.'''
 
@@ -68,13 +68,20 @@ class Datto:
         # create intial session and set parameters
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
-        self.session.headers.update({"Conent-Type" : "applicaion/json"})
+        self.session.headers.update({"Content-Type" : "applicaion/json"})
         
         r = self.session.get(API_BASE_URI).json()  # test the connection
         if 'code' in r: 
             print('[!]   Critical Failure:  "{}"'.format(r['message']))
             sys.exit(1)
-    
+
+        # Retrieve and parse data from XML API
+        xml_request = requests.Session()
+        xml_request.headers.update({"Content-Type" : "application/xml"})
+        api_xml_data = xml_request.get(XML_API_URI).text
+        xml_request.close()
+        self.xml_api_root = ET.fromstring(api_xml_data)
+
     def getDevices(self):
         '''        
         Query the Datto API for all 'Devices'
@@ -105,6 +112,28 @@ class Datto:
         Returns JSON data (dictionary) for the device with the given serial number
         '''
         return self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
+
+    def getAgentScreenshot(self,deviceName,agentName):
+
+        # Find 'Device' elements.  If it matches, find the target agent and get screenshot URI.
+        for xml_device in self.xml_api_root.findall('Device'):
+
+            # Iterate through devices to find the target device
+            xml_hostname = xml_device.find('Hostname')
+            if xml_hostname.text == deviceName:
+
+                # Iterate through device agents to find target agent
+                backup_volumes = xml_device.find('BackupVolumes')
+                for backup_volume in backup_volumes.findall('BackupVolume'):
+                    xml_agent_name = backup_volume.find('Volume')
+
+                    # If agent name matches, get screenshot URI and return
+                    if xml_agent_name.text == agentName:
+                        screenshotURI = backup_volume.find('ScreenshotImagePath').text
+                        return(screenshotURI)
+            else:
+                continue
+            break # finish loop after target device is found.
         
     def sessionClose(self):
         '''Close the "requests" session'''
@@ -150,7 +179,8 @@ def buildEmailBody(results_data):
         MSG_BODY += '<h1>Screenshot Failures</h1><table>\
         <tr><th>Appliance</th><th>Agent</th><th>Screenshot</th></tr>'
         for error in results_data['screenshot_error']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+            image_html = '<a href="{0}"><img src={0} alt="" style="max-width: 10em;"></img></a>'.format(error[3])
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + image_html + '</td></tr>'
         MSG_BODY += '</table>'
         
     if results_data['verification_error']:
@@ -351,12 +381,13 @@ try:      # catch KeyboardInterrupt
                     error_text = 'Last screenshot was {} ago.'.format(display_time(timeDiff.total_seconds()))
                     errors.append(error_text)
                     appendError(['screenshot_error', device['name'], agent['name'], error_text, ''])
-                    
+
             # check status of last screenshot attempt
             if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
                 error_text = 'Last screenshot attempt failed!'
                 errors.append(error_text)
-                appendError(['screenshot_error', device['name'], agent['name'], '###--COMING SOON--###'])
+                screenshotURI = dattoAPI.getAgentScreenshot(device['name'], agent['name'])
+                appendError(['screenshot_error', device['name'], agent['name'], screenshotURI])
 
             # check local verification and report any errors
             try:
