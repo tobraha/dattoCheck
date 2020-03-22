@@ -152,7 +152,7 @@ def buildEmailBody(results_data):
     '''Compile all results into HTML tables based on error level.
     '''
     # create initial html structure
-    MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}</style></head><body>'
+    MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;} img{max-width: 160px;}</style></head><body>'
     
     if results_data['critical']:
         MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
@@ -179,7 +179,7 @@ def buildEmailBody(results_data):
         MSG_BODY += '<h1>Screenshot Failures</h1><table>\
         <tr><th>Appliance</th><th>Agent</th><th>Screenshot</th></tr>'
         for error in results_data['screenshot_error']:
-            image_html = '<a href="{0}"><img src={0} alt="" style="max-width: 10em;"></img></a>'.format(error[3])
+            image_html = '<a href="{0}"><img src={0} alt=""></img></a>'.format(error[3])
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + image_html + '</td></tr>'
         MSG_BODY += '</table>'
         
