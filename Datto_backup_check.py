@@ -182,7 +182,7 @@ def buildEmailBody(results_data):
             if not error[3]:
                 col_three = 'No Data'
             elif error[3].startswith('http'):
-                col_three = '<a href="{0}"><img src="{0}" alt="" style="width: 160px; height: 120px;"></img></a>'.format(error[3])
+                col_three = '<a href="{0}"><img src="{0}" alt="" width="160"></img></a>'.format(error[3])
             else:
                 col_three = error[3]
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
