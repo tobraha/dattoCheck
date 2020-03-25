@@ -5,6 +5,7 @@
 '''
 
 import requests
+import sys
 import datetime
 import argparse
 from xml.etree import ElementTree as ET
@@ -151,7 +152,7 @@ def buildEmailBody(results_data):
     '''Compile all results into HTML tables based on error level.
     '''
     # create initial html structure
-    MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;} img{width: 160px; height: 120px;}</style></head><body>'
+    MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}</style></head><body>'
     
     if results_data['critical']:
         MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
@@ -181,7 +182,7 @@ def buildEmailBody(results_data):
             if not error[3]:
                 col_three = 'No Data'
             elif error[3].startswith('http'):
-                col_three = '<a href="{0}"><img src="{0}" alt=""></img></a>'.format(error[3])
+                col_three = '<a href="{0}"><img src="{0}" alt="" style="width: 160px; height: 120px;"></img></a>'.format(error[3])
             else:
                 col_three = error[3]
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
