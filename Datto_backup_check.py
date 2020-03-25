@@ -178,7 +178,9 @@ def buildEmailBody(results_data):
         MSG_BODY += '<h1>Screenshot Failures</h1><table>\
         <tr><th>Appliance</th><th>Agent</th><th>Screenshot</th></tr>'
         for error in results_data['screenshot_error']:
-            if error[3].startswith('http'):
+            if not error[3]:
+                col_three = 'No Data'
+            elif error[3].startswith('http'):
                 col_three = '<a href="{0}"><img src="{0}" alt=""></img></a>'.format(error[3])
             else:
                 col_three = error[3]
