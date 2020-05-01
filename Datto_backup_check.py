@@ -48,15 +48,15 @@ XML_API_URI = 'https://portal.dattobackup.com/external/api/xml/status/{0}'.forma
 AUTH_USER = args.AUTH_USER
 AUTH_PASS = args.AUTH_PASS
 
-### Add logging
+### Add rotating log
 import logging
 from logging.handlers import RotatingFileHandler
 import traceback
 
 logger = logging.getLogger("Rotating Log")
 logger.setLevel(logging.ERROR)
-handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=10000, backupCount=5)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=200000, backupCount=5)
+formatter = logging.Formatter('{asctime} - {name} - {levelname} - {message}')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -415,8 +415,7 @@ try:
                         errors.append(error_text)
                         appendError(['verification_error', device['name'], agent['name'], error['errorType'], error['errorMessage']])
             except Exception as e:
-                logger.error(str(e))
-                logger.error(traceback.format_exc())
+                logger.error('Local Verification Check. Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
 
         if errors: printErrors(errors, device['name'])
 
@@ -432,6 +431,5 @@ try:
 
     sys.exit(0)
 except Exception as e:
-    logger.error(str(e))
-    logger.error(traceback.format_exc())
+    logger.fatal('Fatal error!  Device: {} - "{}"\n{}'.format(device['name'], str(e), traceback.format_exc()))
     sys.exit(dattoAPI.sessionClose())
