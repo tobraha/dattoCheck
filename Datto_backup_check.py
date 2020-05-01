@@ -1,7 +1,8 @@
 #!/usr/bin/python3
+
 '''
-//TODO: 
-    1. Add screenshot download using XML API; add to email.
+TODO:
+1. Implement a retry to get around 500 errors from the Datto API
 '''
 
 import requests
@@ -46,6 +47,18 @@ API_BASE_URI = 'https://api.datto.com/v1/bcdr/device'
 XML_API_URI = 'https://portal.dattobackup.com/external/api/xml/status/{0}'.format(args.XML_API_KEY)
 AUTH_USER = args.AUTH_USER
 AUTH_PASS = args.AUTH_PASS
+
+### Add logging
+import logging
+from logging.handlers import RotatingFileHandler
+import traceback
+
+logger = logging.getLogger("Rotating Log")
+logger.setLevel(logging.ERROR)
+handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=10000, backupCount=5)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 ## Set this to True to send the report email:
 SEND_EMAIL = False
@@ -284,7 +297,7 @@ results_data = {'critical' : [],
                 }
 
 # main loop
-try:      # catch KeyboardInterrupt
+try:
     for device in devices:
         
         if device['hidden']: continue # skip hidden devices in the portal
@@ -402,8 +415,8 @@ try:      # catch KeyboardInterrupt
                         errors.append(error_text)
                         appendError(['verification_error', device['name'], agent['name'], error['errorType'], error['errorMessage']])
             except Exception as e:
-                print('\nException Caught: {}'.format(e))
-                print('-- [!] -- Error checking local verification for agent "{}".  Moving on!'.format(agent['name']))
+                logger.error(str(e))
+                logger.error(traceback.format_exc())
 
         if errors: printErrors(errors, device['name'])
 
@@ -418,5 +431,7 @@ try:      # catch KeyboardInterrupt
         email_report()
 
     sys.exit(0)
-except KeyboardInterrupt:
+except Exception as e:
+    logger.error(str(e))
+    logger.error(traceback.format_exc())
     sys.exit(dattoAPI.sessionClose())
