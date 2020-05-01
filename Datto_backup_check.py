@@ -56,7 +56,7 @@ import traceback
 logger = logging.getLogger("Rotating Log")
 logger.setLevel(logging.ERROR)
 handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=200000, backupCount=5)
-formatter = logging.Formatter('{asctime} - {name} - {levelname} - {message}')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
