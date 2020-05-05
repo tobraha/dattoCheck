@@ -9,6 +9,9 @@ import requests
 import sys
 import datetime
 import argparse
+import tenacity
+import tenacity
+from tenacity import retry
 from xml.etree import ElementTree as ET
 
 __authors__ = ['Tommy Harris', 'Ryan Shoemaker']
@@ -95,6 +98,7 @@ class Datto:
         xml_request.close()
         self.xml_api_root = ET.fromstring(api_xml_data)
 
+    @retry(wait=tenacity.wait_fixed(3), stop=tenacity.stop_after_attempt(5), after=tenacity.after_log(logger, logging.DEBUG))
     def getDevices(self):
         '''        
         Query the Datto API for all 'Devices'
@@ -117,6 +121,7 @@ class Datto:
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
+    @retry(wait=tenacity.wait_fixed(3), stop=tenacity.stop_after_attempt(5), after=tenacity.after_log(logger, logging.DEBUG))
     def getAssetDetails(self,serialNumber):
         '''
         With a device serial number (argument), query the API with it
@@ -349,8 +354,12 @@ try:
         assetDetails = dattoAPI.getAssetDetails(device['serialNumber'])
         
         for agent in assetDetails:
-            if agent['isArchived']: continue
-            if agent['isPaused']: continue
+            try:
+                if agent['isArchived']: continue
+                if agent['isPaused']: continue
+            except Exception as e:
+                logger.critical('Error: "{}" (device: "{}")'.format(str(e), device['name']))
+                continue
             
             BACKUP_FAILURE = False
 
