@@ -9,6 +9,9 @@ import requests
 import sys
 import datetime
 import argparse
+from urllib.parse import urlparse
+import tenacity
+from tenacity import retry
 from xml.etree import ElementTree as ET
 
 __authors__ = ['Tommy Harris', 'Ryan Shoemaker']
@@ -101,7 +104,7 @@ class Datto:
          -Check pagination details and iterate through any additional pages
           to return a list of all devices
         Returns a list of all 'items' from the devices API.
-        '''        
+        '''
         r = self.session.get(API_BASE_URI + '?_page=1').json() # initial request
         
         devices = [] 
@@ -117,6 +120,7 @@ class Datto:
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
+    @retry(wait=tenacity.wait_fixed(3), stop=tenacity.stop_after_attempt(5), after=tenacity.after_log(logger, logging.DEBUG))
     def getAssetDetails(self,serialNumber):
         '''
         With a device serial number (argument), query the API with it
@@ -124,7 +128,23 @@ class Datto:
         
         Returns JSON data (dictionary) for the device with the given serial number
         '''
-        return self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
+        asset_data = self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
+
+        if 'code' in asset_data:
+            raise Exception
+
+        return asset_data
+
+    def rebuildScreenshotUrl(self,url):
+        '''Rebuild the URL using the latest API calls'''
+
+        baseUrl = 'https://device.dattobackup.com/sirisReporting/images/latest'
+
+        o = urlparse(url)
+        imageName = o.query.split('/')[-1]
+        newUrl = '/'.join([baseUrl, imageName])
+
+        return newUrl
 
     def getAgentScreenshot(self,deviceName,agentName):
 
@@ -142,11 +162,22 @@ class Datto:
 
                     # If agent name matches, get screenshot URI and return
                     if xml_agent_name.text == agentName:
+                        screenshotURI = ""
                         screenshotURI = backup_volume.find('ScreenshotImagePath').text
-                        return(screenshotURI)
+
+                        #check to see if the old API is being used; correct if so
+                        if 'partners.dattobackup.com' in screenshotURI:
+                            screenshotURI = dattoAPI.rebuildScreenshotUrl(screenshotURI)
+
+                        if backup_volume.find('ScreenshotError').text:
+                            screenshotErrorMessage = backup_volume.find('ScreenshotError').text
+                        else:
+                            screenshotErrorMessage = "[error message not available]"
+                        return(screenshotURI, screenshotErrorMessage)
             else:
                 continue
             break # finish loop after target device is found.
+        return(-1,-1)
         
     def sessionClose(self):
         '''Close the "requests" session'''
@@ -195,7 +226,7 @@ def buildEmailBody(results_data):
             if not error[3]:
                 col_three = 'No Data'
             elif error[3].startswith('http'):
-                col_three = '<a href="{0}"><img src="{0}" alt="" width="160"></img></a>'.format(error[3])
+                col_three = '<a href="{0}"><img src="{0}" alt="" width="160" title="{1}"></img></a>'.format(error[3], error[4])
             else:
                 col_three = error[3]
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
@@ -349,8 +380,12 @@ try:
         assetDetails = dattoAPI.getAssetDetails(device['serialNumber'])
         
         for agent in assetDetails:
-            if agent['isArchived']: continue
-            if agent['isPaused']: continue
+            try:
+                if agent['isArchived']: continue
+                if agent['isPaused']: continue
+            except Exception as e:
+                logger.critical('Error: "{}" (device: "{}")'.format(str(e), device['name']))
+                continue
             
             BACKUP_FAILURE = False
 
@@ -404,8 +439,11 @@ try:
             if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
                 error_text = 'Last screenshot attempt failed!'
                 errors.append(error_text)
-                screenshotURI = dattoAPI.getAgentScreenshot(device['name'], agent['name'])
-                appendError(['screenshot_error', device['name'], agent['name'], screenshotURI])
+                screenshotURI,screenshotErrorMessage = dattoAPI.getAgentScreenshot(device['name'], agent['name'])
+                if screenshotURI == -1:
+                    screenshotURI = ""
+                    screenshotErrorMessage = ""
+                appendError(['screenshot_error', device['name'], agent['name'], screenshotURI, screenshotErrorMessage])
 
             # check local verification and report any errors
             try:
