@@ -9,10 +9,13 @@ import requests
 import sys
 import datetime
 import argparse
-from urllib.parse import urlparse
+import traceback
 import tenacity
+import logging
+from urllib.parse import urlparse
 from tenacity import retry
 from xml.etree import ElementTree as ET
+from logging.handlers import RotatingFileHandler
 
 __authors__ = ['Tommy Harris', 'Ryan Shoemaker']
 __date__ = 'September 8, 2019'
@@ -52,12 +55,8 @@ AUTH_USER = args.AUTH_USER
 AUTH_PASS = args.AUTH_PASS
 
 ### Add rotating log
-import logging
-from logging.handlers import RotatingFileHandler
-import traceback
-
-logger = logging.getLogger("Rotating Log")
-logger.setLevel(logging.ERROR)
+logger = logging.getLogger("Datto Check")
+logger.setLevel(logging.INFO)
 handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=200000, backupCount=5)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
@@ -314,9 +313,7 @@ def email_report():
     s.send_message(msg)
     s.quit()
     return
-        
-dattoAPI = Datto()
-devices = dattoAPI.getDevices()
+
 
 # initialize results_data, used for generating html report
 results_data = {'critical' : [],
@@ -326,6 +323,10 @@ results_data = {'critical' : [],
                 'verification_error' : [],
                 'informational' : []
                 }
+
+dattoAPI = Datto()
+devices = dattoAPI.getDevices()
+logger.info("Starting Datto Checks")
 
 # main loop
 try:
@@ -466,8 +467,9 @@ try:
         from email.mime.text import MIMEText
 
         email_report()
-
+    logger.info("Datto check script complete.")
     sys.exit(0)
 except Exception as e:
     logger.fatal('Fatal error!  Device: {} - "{}"\n{}'.format(device['name'], str(e), traceback.format_exc()))
+    logger.info("Datto check script finished with errors.")
     sys.exit(dattoAPI.sessionClose())
