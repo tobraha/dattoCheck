@@ -88,6 +88,7 @@ class Datto:
         r = self.session.get(API_BASE_URI).json()  # test the connection
         if 'code' in r: 
             print('[!]   Critical Failure:  "{}"'.format(r['message']))
+            logger.fatal('Critical Failure:  "{}"'.format(r['message']))
             sys.exit(1)
 
         # Retrieve and parse data from XML API
@@ -255,11 +256,9 @@ def buildEmailBody(results_data):
 def printErrors(errors, device_name):
     header = '\n--DEVICE: {}'.format(device_name)
     print(header)
-    #MSG_BODY.append(header)
     for error in errors:
         print(error)
-        #MSG_BODY.append(error)
-    
+
 def display_time(seconds, granularity=2):
     # from "Mr. B":
     # https://stackoverflow.com/questions/4048651/python-function-to-convert-seconds-into-minutes-hours-and-days/24542445#answer-24542445
@@ -324,9 +323,9 @@ results_data = {'critical' : [],
                 'informational' : []
                 }
 
+logger.info("Starting Datto Checks")
 dattoAPI = Datto()
 devices = dattoAPI.getDevices()
-logger.info("Starting Datto Checks")
 
 # main loop
 try:
