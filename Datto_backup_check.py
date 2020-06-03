@@ -458,17 +458,26 @@ try:
         if errors: printErrors(errors, device['name'])
 
     dattoAPI.sessionClose()
-    MSG_BODY = buildEmailBody(results_data).strip('\n')
-    if SEND_EMAIL:
-        import smtplib
-        from email.mime.application import MIMEApplication
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
 
-        email_report()
-    logger.info("Datto check script complete.")
-    sys.exit(0)
 except Exception as e:
     logger.fatal('Fatal error!  Device: {} - "{}"\n{}'.format(device['name'], str(e), traceback.format_exc()))
     logger.info("Datto check script finished with errors.")
     sys.exit(dattoAPI.sessionClose())
+
+if SEND_EMAIL:
+    import smtplib
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    try:
+        MSG_BODY = buildEmailBody(results_data).strip('\n')
+    except Exception as e:
+        logger.error('Failed to build email body')
+        MSG_BODY = '\nFailed to build HTML email report.  This was likely caused by the API returning corrupt (or empty) data for a device.\n\n'
+        MSG_BODY += 'Error & Traceback:\n\n"{}"\n{}'.format(str(e), traceback.format_exc())
+
+    email_report()
+
+logger.info("Datto check script complete.")
+sys.exit(0)
