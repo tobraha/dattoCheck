@@ -1,10 +1,5 @@
 #!/usr/bin/python3
 
-'''
-TODO:
-1. Implement a retry to get around 500 errors from the Datto API
-'''
-
 import requests
 import sys
 import datetime
@@ -33,11 +28,15 @@ parser.add_argument('AUTH_PASS', help='Datto API Password (REST API Secret Key')
 parser.add_argument('XML_API_KEY', help='Datto XML API Key')
 
 # Optional arguments
-parser.add_argument('--send-email', help='Set this flag to send an email.  Below parameters required if set', action='store_true')
-parser.add_argument('--email-to', help='Email address to send message to. Use more than once for multiple recipients.',
+parser.add_argument('--send-email',
+                    help='Set this flag to send an email.  Below parameters required if set',
+                    action='store_true')
+parser.add_argument('--email-to',
+                    help='Email address to send message to. Use more than once for multiple recipients.',
                     action='append',
                     required=True)
-parser.add_argument('--email-cc',help='(OPTIONAL) Email address to CC. Use more than once for multiple recipients.',
+parser.add_argument('--email-cc',
+                    help='(OPTIONAL) Email address to CC. Use more than once for multiple recipients.',
                     action='append')
 parser.add_argument('--email-from', help='Email address to send message from', required=True)
 parser.add_argument('--email-pw', help='Password to use for authentication')
@@ -67,7 +66,7 @@ SEND_EMAIL = False
 if args.send_email:
     SEND_EMAIL = True
 
-# Error/Alert threshold settings
+## Error/Alert threshold settings
 CHECKIN_LIMIT = 60 * 20                  # threshold for device offline time 
 STORAGE_PCT_THRESHOLD = 95               # threshold for local storage; in percent
 LAST_BACKUP_THRESHOLD = 60 * 60 * 12     # threshold for failed backup time
@@ -85,31 +84,39 @@ class Datto:
         self.session.auth = (AUTH_USER, AUTH_PASS)
         self.session.headers.update({"Content-Type" : "applicaion/json"})
         
-        r = self.session.get(API_BASE_URI).json()  # test the connection
-        if 'code' in r: 
+        self.test_api_connection()
+        self.get_xml_api_data()
+
+    def test_api_connection(self):
+        '''Make a connection to the API Base URL to test connectivity and credentials.
+        Store the initial device query for later use.
+        '''
+        self.assets = self.session.get(API_BASE_URI + '?_page=1').json()
+        if 'code' in self.assets:
             print('[!]   Critical Failure:  "{}"'.format(r['message']))
             logger.fatal('Critical Failure:  "{}"'.format(r['message']))
             sys.exit(1)
+        return
 
-        # Retrieve and parse data from XML API
+    def get_xml_api_data(self):
+        '''Retrieve and parse data from XML API'''
         xml_request = requests.Session()
         xml_request.headers.update({"Content-Type" : "application/xml"})
         api_xml_data = xml_request.get(XML_API_URI).text
         xml_request.close()
         self.xml_api_root = ET.fromstring(api_xml_data)
+        return
 
     def getDevices(self):
         '''        
-        Query the Datto API for all 'Devices'
+        Use the initial device API query to load all devices
          -Check pagination details and iterate through any additional pages
           to return a list of all devices
         Returns a list of all 'items' from the devices API.
         '''
-        r = self.session.get(API_BASE_URI + '?_page=1').json() # initial request
-        
-        devices = [] 
-        devices.extend(r['items']) # load the first (up to) 100 devices into device list
-        totalPages = r['pagination']['totalPages'] # see how many pages there are
+        devices = []
+        devices.extend(self.assets['items']) # load the first (up to) 100 devices into device list
+        totalPages = self.assets['pagination']['totalPages'] # see how many pages there are
         
         # new request for each page; extend additional 'items' to devices list
         if totalPages > 1:
@@ -167,7 +174,7 @@ class Datto:
 
                         #check to see if the old API is being used; correct if so
                         if 'partners.dattobackup.com' in screenshotURI:
-                            screenshotURI = dattoAPI.rebuildScreenshotUrl(screenshotURI)
+                            screenshotURI = self.rebuildScreenshotUrl(screenshotURI)
 
                         if backup_volume.find('ScreenshotError').text:
                             screenshotErrorMessage = backup_volume.find('ScreenshotError').text
