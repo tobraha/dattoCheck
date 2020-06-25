@@ -93,8 +93,8 @@ class Datto:
         '''
         self.assets = self.session.get(API_BASE_URI + '?_page=1').json()
         if 'code' in self.assets:
-            print('[!]   Critical Failure:  "{}"'.format(r['message']))
-            logger.fatal('Critical Failure:  "{}"'.format(r['message']))
+            print('[!]   Critical Failure:  "{}"'.format(self.assets['message']))
+            logger.fatal('Critical Failure:  "{}"'.format(self.assets['message']))
             sys.exit(1)
         return
 
