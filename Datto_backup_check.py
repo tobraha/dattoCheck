@@ -405,9 +405,10 @@ try:
                 try:
                     if agent['backups'][0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
                         backup_error = agent['backups'][0]['backup']['errorMessage']
-                        error_text = 'Last scheduled backup failed; last backup was {} ago. Error: "{}"'.format(\
-                            display_time(timeDiff.total_seconds()), 
-                            backup_error)
+                        if not backup_error:
+                            backup_error = "No error message available"
+                        error_text = '-- "{}": Last scheduled backup failed; last backup was {} ago. Error: "{}"'.format(\
+                            agent['name'], display_time(timeDiff.total_seconds()), backup_error)
                         BACKUP_FAILURE = True
                         errors.append(error_text)
                         appendError(['backup_error',
