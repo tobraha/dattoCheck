@@ -481,8 +481,8 @@ if SEND_EMAIL:
         MSG_BODY = buildEmailBody(results_data).strip('\n')
     except Exception as e:
         logger.error('Failed to build email body')
-        MSG_BODY = '\nFailed to build HTML email report.  This was likely caused by the API returning corrupt (or empty) data for a device.\n\n'
-        MSG_BODY += 'Error & Traceback:\n\n"{}"\n{}'.format(str(e), traceback.format_exc())
+        MSG_BODY = '<pre>\nFailed to build HTML email report.  This was likely caused by the API returning corrupt (or empty) data for a device.\n\n'
+        MSG_BODY += 'Error & Traceback:\n\n"{}"\n{}</pre>'.format(str(e), traceback.format_exc())
 
     email_report()
 
