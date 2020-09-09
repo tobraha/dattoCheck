@@ -409,17 +409,17 @@ try:
                             backup_error = "No error message available"
                         # check if local backup points exist
                         if agent['lastSnapshot']:
-                            lastSnapshotTime = display_time(timeDiff.total_seconds())
+                            lastSnapshotTime = str(display_time(timeDiff.total_seconds())) + ' ago'
                         else:
-                            lastSnapshotTime = "No local snapshots exist"
-                        error_text = '-- "{}": Last scheduled backup failed; last backup was {} ago. Error: "{}"'.format(\
+                            lastSnapshotTime = "(no local snapshots exist)"
+                        error_text = '-- "{}": Last scheduled backup failed; last backup was: {}. Error: "{}"'.format(\
                             agent['name'], lastSnapshotTime, backup_error)
                         BACKUP_FAILURE = True
                         errors.append(error_text)
                         appendError(['backup_error',
                                      device['name'],
                                      agent['name'],
-                                     '{} ago.'.format(lastSnapshotTime),
+                                     '{}'.format(lastSnapshotTime),
                                      backup_error])
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
