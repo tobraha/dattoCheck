@@ -46,14 +46,14 @@ parser.add_argument('--starttls', help='Specify whether to use STARTTLS or not',
 
 # Parsing and using the arguments
 args = parser.parse_args()
-    
+
 # Global Variables
 API_BASE_URI = 'https://api.datto.com/v1/bcdr/device'
 XML_API_URI = 'https://portal.dattobackup.com/external/api/xml/status/{0}'.format(args.XML_API_KEY)
 AUTH_USER = args.AUTH_USER
 AUTH_PASS = args.AUTH_PASS
 
-### Add rotating log
+### Rotating log
 logger = logging.getLogger("Datto Check")
 logger.setLevel(logging.INFO)
 handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=200000, backupCount=5)
@@ -67,7 +67,7 @@ if args.send_email:
     SEND_EMAIL = True
 
 ## Error/Alert threshold settings
-CHECKIN_LIMIT = 60 * 20                  # threshold for device offline time 
+CHECKIN_LIMIT = 60 * 20                  # threshold for device offline time
 STORAGE_PCT_THRESHOLD = 95               # threshold for local storage; in percent
 LAST_BACKUP_THRESHOLD = 60 * 60 * 12     # threshold for failed backup time
 LAST_OFFSITE_THRESHOLD = 60 * 60 * 72    # threshold for last successful off-site
@@ -83,7 +83,7 @@ class Datto:
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
         self.session.headers.update({"Content-Type" : "applicaion/json"})
-        
+
         self.test_api_connection()
         self.get_xml_api_data()
 
@@ -108,7 +108,7 @@ class Datto:
         return
 
     def getDevices(self):
-        '''        
+        '''
         Use the initial device API query to load all devices
          -Check pagination details and iterate through any additional pages
           to return a list of all devices
@@ -117,13 +117,13 @@ class Datto:
         devices = []
         devices.extend(self.assets['items']) # load the first (up to) 100 devices into device list
         totalPages = self.assets['pagination']['totalPages'] # see how many pages there are
-        
+
         # new request for each page; extend additional 'items' to devices list
         if totalPages > 1:
             for page in range(2, totalPages+1):
                 r = self.session.get(API_BASE_URI + '?_page=' + str(page)).json()
                 devices.extend(r['items'])
-                
+
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
@@ -132,7 +132,7 @@ class Datto:
         '''
         With a device serial number (argument), query the API with it
         to retrieve JSON data with the asset info for that device.
-        
+
         Returns JSON data (dictionary) for the device with the given serial number
         '''
         asset_data = self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
@@ -185,14 +185,14 @@ class Datto:
                 continue
             break # finish loop after target device is found.
         return(-1,-1)
-        
+
     def sessionClose(self):
         '''Close the "requests" session'''
         return self.session.close()
 
 def appendError(error_detail):
     '''Append an error to the results_data list.
-    
+
         error_detail - List of error data. 
             First and second items are error level, and device name
     '''
@@ -204,21 +204,21 @@ def buildEmailBody(results_data):
     '''
     # create initial html structure
     MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}</style></head><body>'
-    
+
     if results_data['critical']:
         MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
         MSG_BODY += '<tr><th>Appliance</th><th>Error Type</th><th>Error Details</th></tr>'
         for error in results_data['critical']:
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
-            
+
     if results_data['backup_error']:
         MSG_BODY += '<h1>Backup Errors</h1><table>\
         <tr><th>Appliance</th><th>Agent/Share</th><th>Last Backup</th><th>Error Details</th></tr>'
         for error in results_data['backup_error']:
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
         MSG_BODY += '</table>'
-        
+
     if results_data['offsite_error']:
         MSG_BODY += '<h1>Off-Site Sync Issues</h1><table>\
         <tr><th>Appliance</th><th>Agent/Share</th><th>Error Details</th></tr>'
@@ -238,7 +238,7 @@ def buildEmailBody(results_data):
                 col_three = error[3]
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
         MSG_BODY += '</table>'
-        
+
     if results_data['verification_error']:
         MSG_BODY += '<h1>Local Verification Issues</h1><table>\
         <tr><th>Appliance</th><th>Agent</th><th>Error Type</th><th>Error Message</th></tr>'
@@ -246,7 +246,7 @@ def buildEmailBody(results_data):
             if error[4]:
                 error_message = error[4]
             else:
-                error_message = '<none>'            
+                error_message = '<none>'
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error_message + '</td></tr>'
         MSG_BODY += '</table>'
 
@@ -256,8 +256,8 @@ def buildEmailBody(results_data):
         for error in results_data['informational']:
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
-        
-    MSG_BODY += '</body></html>'    
+
+    MSG_BODY += '</body></html>'
     return(MSG_BODY)
 
 def printErrors(errors, device_name):
@@ -276,7 +276,7 @@ def display_time(seconds, granularity=2):
         ('minutes', 60),
         ('seconds', 1),
         )
-    
+
     seconds = int(seconds)
     result = []
 
@@ -291,11 +291,11 @@ def display_time(seconds, granularity=2):
 
 def email_report():
     """Email error report to listed recipients.
-    
-    If using Office 365 and only sending to recipients in the 
+
+    If using Office 365 and only sending to recipients in the
     same domain, it's best to use the "direct send" method because
     authentication is not required. See Option 2 here (you'll need a send connector for this):
-    
+
     https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-office-3
     """
 
@@ -337,12 +337,12 @@ devices = dattoAPI.getDevices()
 # main loop
 try:
     for device in devices:
-        
+
         if device['hidden']: continue # skip hidden devices in the portal
         if device['name'] == 'backupDevice': continue # skip unnamed devices
-        
+
         errors = []
-        
+
         #######################
         ###  DEVICE CHECKS  ###
         #######################
@@ -359,33 +359,33 @@ try:
         device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
         now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
         timeDiff = now - device_checkin
-    
+
         if timeDiff.total_seconds() >= CHECKIN_LIMIT:
             error_text = "Last checkin was {} ago.".format(display_time(timeDiff.total_seconds()))
             errors.append(error_text)
             appendError(['critical', device['name'], 'Appliance Offline',error_text])
             printErrors(errors, device['name'])
             continue  # do not proceed if the device is offline; go to next device
-        
+
         # Check Local Disk Usage
         storage_available = int(device['localStorageAvailable']['size'])
-        storage_used = int(device['localStorageUsed']['size'])    
+        storage_used = int(device['localStorageUsed']['size'])
         total_space = storage_available + storage_used
         available_pct = float("{0:.2f}".format(storage_used / total_space)) * 100
-        
+
         if available_pct > STORAGE_PCT_THRESHOLD:
             error_text = 'Local storage exceeds {}%.  Current Usage: {}%'.\
                           format(str(STORAGE_PCT_THRESHOLD), str(available_pct))
             appendError(['critical', device['name'], 'Low Disk Space',error_text])
-            errors.append(error_text)                        
-            
+            errors.append(error_text)
+
         ######################
         #### AGENT CHECKS ####
         ######################
-        
+
         # query the API with the device S/N to get asset info
         assetDetails = dattoAPI.getAssetDetails(device['serialNumber'])
-        
+
         for agent in assetDetails:
             try:
                 if agent['isArchived']: continue
@@ -393,34 +393,39 @@ try:
             except Exception as e:
                 logger.critical('Error: "{}" (device: "{}")'.format(str(e), device['name']))
                 continue
-            
+
             BACKUP_FAILURE = False
 
             # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
             lastBackupTime = datetime.datetime.fromtimestamp(agent['lastSnapshot'], datetime.timezone.utc)
             now = datetime.datetime.now(datetime.timezone.utc)
             timeDiff = now - lastBackupTime
-            
+
             if timeDiff.total_seconds() > LAST_BACKUP_THRESHOLD:
                 try:
                     if agent['backups'][0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
                         backup_error = agent['backups'][0]['backup']['errorMessage']
                         if not backup_error:
                             backup_error = "No error message available"
+                        # check if local backup points exist
+                        if agent['lastSnapshot']:
+                            lastSnapshotTime = display_time(timeDiff.total_seconds())
+                        else:
+                            lastSnapshotTime = "No local snapshots exist"
                         error_text = '-- "{}": Last scheduled backup failed; last backup was {} ago. Error: "{}"'.format(\
-                            agent['name'], display_time(timeDiff.total_seconds()), backup_error)
+                            agent['name'], lastSnapshotTime, backup_error)
                         BACKUP_FAILURE = True
                         errors.append(error_text)
                         appendError(['backup_error',
                                      device['name'],
                                      agent['name'],
-                                     '{} ago.'.format(display_time(timeDiff.total_seconds())),
+                                     '{} ago.'.format(lastSnapshotTime),
                                      backup_error])
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
                     errors.append(error_text)
                     appendError(['informational', device['name'], agent['name'], error_text])
-                    
+
             # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
             if not agent['latestOffsite']:
                 error_text = 'No off-site backup points exist'
@@ -433,7 +438,7 @@ try:
                     error_text = 'Last off-site: {} ago'.format(display_time(timeDiff.total_seconds()))
                     errors.append(error_text)
                     appendError(['offsite_error', device['name'], agent['name'], error_text])
-                    
+
             # check time of last screenshot
             if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
                 last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
