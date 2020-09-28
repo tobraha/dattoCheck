@@ -85,7 +85,7 @@ class Datto:
         self.session.headers.update({"Content-Type" : "applicaion/json"})
 
         self.test_api_connection()
-        self.get_xml_api_data()
+        self.xml_api_root = self.get_xml_api_data()
 
     def test_api_connection(self):
         '''Make a connection to the API Base URL to test connectivity and credentials.
@@ -99,13 +99,13 @@ class Datto:
         return
 
     def get_xml_api_data(self):
-        '''Retrieve and parse data from XML API'''
+        '''Retrieve and parse data from XML API
+        Returns xml ElementTree of Datto XML content'''
         xml_request = requests.Session()
         xml_request.headers.update({"Content-Type" : "application/xml"})
         api_xml_data = xml_request.get(XML_API_URI).text
         xml_request.close()
-        self.xml_api_root = ET.fromstring(api_xml_data)
-        return
+        return(ET.fromstring(api_xml_data))
 
     def getDevices(self):
         '''
