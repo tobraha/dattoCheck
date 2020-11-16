@@ -143,7 +143,7 @@ class Datto:
         if 'code' in asset_data:
             logger.error("Error encountered retreiving asset detail data from the API.")
             ERR_FLAG = True
-            break
+            return
 
         return asset_data
 
@@ -211,10 +211,10 @@ def buildEmailBody(results_data):
     MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}</style></head><body>'
 
     if ERR_FLAG:
-        MSG_BODY += "<h3><i>* Errors encountered!  Please see the logfile '{0}' on host '{1}'</i></h3>".format(logFile, hostName)
+        MSG_BODY += '<h3 style="background-color: yellow;"><i>* Errors encountered!  Please see the logfile "{0}" on host "{1}"</i></h3>'.format(logFile, hostName)
 
     if results_data['critical']:
-        MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
+        MSG_BODY += '<h1 style="color: red;">CRITICAL ERRORS</h1><table>'
         MSG_BODY += '<tr><th>Appliance</th><th>Error Type</th><th>Error Details</th></tr>'
         for error in results_data['critical']:
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
@@ -491,6 +491,8 @@ if SEND_EMAIL:
     from email.mime.application import MIMEApplication
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
+
+    ERR_FLAG = True
 
     try:
         MSG_BODY = buildEmailBody(results_data).strip('\n')
