@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import requests
-import sys
+import sys, os
 import datetime
 import argparse
 import traceback
@@ -52,11 +52,14 @@ API_BASE_URI = 'https://api.datto.com/v1/bcdr/device'
 XML_API_URI = 'https://portal.dattobackup.com/external/api/xml/status/{0}'.format(args.XML_API_KEY)
 AUTH_USER = args.AUTH_USER
 AUTH_PASS = args.AUTH_PASS
+ERR_FLAG = False
 
 ### Rotating log
 logger = logging.getLogger("Datto Check")
 logger.setLevel(logging.INFO)
 handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=200000, backupCount=5)
+logFile = handler.baseFilename
+hostName = os.uname()[1]
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -138,7 +141,9 @@ class Datto:
         asset_data = self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
 
         if 'code' in asset_data:
-            raise Exception
+            logger.error("Error encountered retreiving asset detail data from the API.")
+            ERR_FLAG = True
+            break
 
         return asset_data
 
@@ -204,6 +209,9 @@ def buildEmailBody(results_data):
     '''
     # create initial html structure
     MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}</style></head><body>'
+
+    if ERR_FLAG:
+        MSG_BODY += "<h3><i>* Errors encountered!  Please see the logfile '{0}' on host '{1}'</i></h3>".format(logFile, hostName)
 
     if results_data['critical']:
         MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
@@ -391,6 +399,7 @@ try:
                 if agent['isArchived']: continue
                 if agent['isPaused']: continue
             except Exception as e:
+                ERR_FLAG = True
                 logger.critical('Error: "{}" (device: "{}")'.format(str(e), device['name']))
                 continue
 
