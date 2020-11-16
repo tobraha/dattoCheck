@@ -492,8 +492,6 @@ if SEND_EMAIL:
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
 
-    ERR_FLAG = True
-
     try:
         MSG_BODY = buildEmailBody(results_data).strip('\n')
     except Exception as e:
