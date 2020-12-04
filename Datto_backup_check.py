@@ -265,6 +265,13 @@ def buildEmailBody(results_data):
             MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
 
+    if results_data['paused_archived']:
+        MSG_BODY += '<h1>Paused/Archived Agents</h1><table>\
+        <tr><th>Appliance</th><th>Agent/Share</th><th>Status</th></tr>'
+        for error in results_data['paused_archived']:
+            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+        MSG_BODY += '</table>'
+
     MSG_BODY += '</body></html>'
     return(MSG_BODY)
 
@@ -335,7 +342,8 @@ results_data = {'critical' : [],
                 'offsite_error' : [],
                 'screenshot_error' : [],
                 'verification_error' : [],
-                'informational' : []
+                'informational' : [],
+                'paused_archived' : []
                 }
 
 logger.info("Starting Datto Checks")
@@ -396,8 +404,14 @@ try:
 
         for agent in assetDetails:
             try:
-                if agent['isArchived']: continue
-                if agent['isPaused']: continue
+                if agent['isArchived']:
+                    appendError(['paused_archived', device['name'], agent['name'], 'Archived'])
+                    continue
+
+                if agent['isPaused']:
+                    appendError(['paused_archived', device['name'], agent['name'], 'Paused'])
+                    continue
+
             except Exception as e:
                 ERR_FLAG = True
                 logger.critical('Error: "{}" (device: "{}")'.format(str(e), device['name']))
