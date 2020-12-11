@@ -218,14 +218,20 @@ def buildEmailBody(results_data):
         MSG_BODY += '<h1>Backup Errors</h1><table>\
         <tr><th>Appliance</th><th>Agent/Share</th><th>Last Backup</th><th>Error Details</th></tr>'
         for error in results_data['backup_error']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
+            if len(error) == 5:
+                MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
+            else:
+                MSG_BODY += '<tr style="background-color: {0};"><td>'.format(error[5]) + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
         MSG_BODY += '</table>'
 
     if results_data['offsite_error']:
         MSG_BODY += '<h1>Off-Site Sync Issues</h1><table>\
         <tr><th>Appliance</th><th>Agent/Share</th><th>Error Details</th></tr>'
         for error in results_data['offsite_error']:
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+            if len(error) == 4:
+                MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+            else:
+                MSG_BODY += '<tr style="background-color: {0};"><td>'.format(error[4]) + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
         MSG_BODY += '</table>'
 
     if results_data['screenshot_error']:
@@ -238,7 +244,10 @@ def buildEmailBody(results_data):
                 col_three = '<a href="{0}"><img src="{0}" alt="" width="160" title="{1}"></img></a>'.format(error[3], error[4])
             else:
                 col_three = error[3]
-            MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
+            if len(error) == 5:
+                MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
+            else:
+                MSG_BODY += '<tr style="background-color: {0};"><td>'.format(error[5]) + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
         MSG_BODY += '</table>'
 
     if results_data['verification_error']:
@@ -419,12 +428,12 @@ try:
 
                         BACKUP_FAILURE = True
                         errors.append(error_text)
-                        errorDetail = ['backup_error', device['name'], agent['name'],'{}'.format(lastSnapshotTime), backup_error]
+                        errorData = ['backup_error', device['name'], agent['name'],'{}'.format(lastSnapshotTime), backup_error]
 
-                        if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD:
-                            appendError(errorDetail, color='red')
+                        if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD and agent['lastSnapshot']:
+                            appendError(errorData, color='red')
                         else:
-                            appendError(errorDetail)
+                            appendError(errorData)
 
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
@@ -442,7 +451,10 @@ try:
                 if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
                     error_text = 'Last off-site: {} ago'.format(display_time(timeDiff.total_seconds()))
                     errors.append(error_text)
-                    appendError(['offsite_error', device['name'], agent['name'], error_text])
+                    if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD:
+                        appendError(['offsite_error', device['name'], agent['name'], error_text], 'red')
+                    else:
+                        appendError(['offsite_error', device['name'], agent['name'], error_text])
 
             # check time of last screenshot
             if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
@@ -451,7 +463,10 @@ try:
                 if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
                     error_text = 'Last screenshot was {} ago.'.format(display_time(timeDiff.total_seconds()))
                     errors.append(error_text)
-                    appendError(['screenshot_error', device['name'], agent['name'], error_text, ''])
+                    if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD:
+                        appendError(['screenshot_error', device['name'], agent['name'], error_text, '', 'red'])
+                    else:
+                        appendError(['screenshot_error', device['name'], agent['name'], error_text, ''])
 
             # check status of last screenshot attempt
             if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
