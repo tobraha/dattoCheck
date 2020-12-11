@@ -72,6 +72,7 @@ STORAGE_PCT_THRESHOLD = 95               # threshold for local storage; in perce
 LAST_BACKUP_THRESHOLD = 60 * 60 * 12     # threshold for failed backup time
 LAST_OFFSITE_THRESHOLD = 60 * 60 * 72    # threshold for last successful off-site
 LAST_SCREENSHOT_THRESHOLD = 60 * 60 * 48 # threshold for last screenshot taken
+ACTIONABLE_THRESHOLD = 60 * 60 * 24 * 7  # threshold for actionable alerts; one week
 
 class Datto:
     """
@@ -190,12 +191,13 @@ class Datto:
         '''Close the "requests" session'''
         return self.session.close()
 
-def appendError(error_detail):
+def appendError(error_detail, color=None):
     '''Append an error to the results_data list.
 
-        error_detail - List of error data. 
+        error_detail - List of error data.
             First and second items are error level, and device name
     '''
+    if color: error_detail.append(color)
     results_data[error_detail[0]].append(error_detail)
     return
 
@@ -414,13 +416,16 @@ try:
                             lastSnapshotTime = "(no local snapshots exist)"
                         error_text = '-- "{}": Last scheduled backup failed; last backup was: {}. Error: "{}"'.format(\
                             agent['name'], lastSnapshotTime, backup_error)
+
                         BACKUP_FAILURE = True
                         errors.append(error_text)
-                        appendError(['backup_error',
-                                     device['name'],
-                                     agent['name'],
-                                     '{}'.format(lastSnapshotTime),
-                                     backup_error])
+                        errorDetail = ['backup_error', device['name'], agent['name'],'{}'.format(lastSnapshotTime), backup_error]
+
+                        if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD:
+                            appendError(errorDetail, color='red')
+                        else:
+                            appendError(errorDetail)
+
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
                     errors.append(error_text)
