@@ -83,7 +83,7 @@ class Datto:
         # create intial session and set parameters
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
-        self.session.headers.update({"Content-Type" : "applicaion/json"})
+        self.session.headers.update({"Content-Type" : "application/json"})
 
         self.test_api_connection()
         self.xml_api_root = self.get_xml_api_data()
@@ -205,7 +205,7 @@ def buildEmailBody(results_data):
     '''Compile all results into HTML tables based on error level.
     '''
     # create initial html structure
-    MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}</style></head><body>'
+    MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}th{text-align:center;}</style></head><body>'
 
     if results_data['critical']:
         MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
