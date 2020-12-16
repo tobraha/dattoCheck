@@ -5,10 +5,8 @@ import sys
 import datetime
 import argparse
 import traceback
-import tenacity
 import logging
 from urllib.parse import urlparse
-from tenacity import retry
 from xml.etree import ElementTree as ET
 from logging.handlers import RotatingFileHandler
 
@@ -128,7 +126,6 @@ class Datto:
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
-    @retry(wait=tenacity.wait_fixed(3), stop=tenacity.stop_after_attempt(5), after=tenacity.after_log(logger, logging.DEBUG))
     def getAssetDetails(self,serialNumber):
         '''
         With a device serial number (argument), query the API with it

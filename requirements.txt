@@ -1,2 +1,1 @@
 requests==2.20.0
-tenacity==6.2.0
