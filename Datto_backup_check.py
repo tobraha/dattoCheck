@@ -54,7 +54,7 @@ AUTH_PASS = args.AUTH_PASS
 ### Rotating log
 logger = logging.getLogger("Datto Check")
 logger.setLevel(logging.INFO)
-handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=200000, backupCount=5)
+handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=30000, backupCount=5)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -79,6 +79,7 @@ class Datto:
     def __init__(self):
         '''Constructor - initialize Python Requests Session and get XML API data'''
         # create intial session and set parameters
+        logger.info('API: creating new python requests session with the api endpoint')
         self.session = requests.Session()
         self.session.auth = (AUTH_USER, AUTH_PASS)
         self.session.headers.update({"Content-Type" : "application/json"})
@@ -100,6 +101,7 @@ class Datto:
     def get_xml_api_data(self):
         '''Retrieve and parse data from XML API
         Returns xml ElementTree of Datto XML content'''
+        logger.info('API: retrieving datto xml data')
         xml_request = requests.Session()
         xml_request.headers.update({"Content-Type" : "application/xml"})
         api_xml_data = xml_request.get(XML_API_URI).text
@@ -113,6 +115,7 @@ class Datto:
           to return a list of all devices
         Returns a list of all 'items' from the devices API.
         '''
+        logger.info('API: retrieving bdr appliances')
         devices = []
         devices.extend(self.assets['items']) # load the first (up to) 100 devices into device list
         totalPages = self.assets['pagination']['totalPages'] # see how many pages there are
@@ -186,6 +189,7 @@ class Datto:
 
     def sessionClose(self):
         '''Close the "requests" session'''
+        logger.info('API: closing requests session')
         return self.session.close()
 
 def appendError(error_detail, color=None):
@@ -201,6 +205,7 @@ def appendError(error_detail, color=None):
 def buildEmailBody(results_data):
     '''Compile all results into HTML tables based on error level.
     '''
+    logger.info('SCRIPT: begin building html email body')
     # create initial html structure
     MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}th{text-align:center;}</style></head><body>'
 
@@ -306,7 +311,7 @@ def email_report():
 
     https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-office-3
     """
-
+    logger.info('SCRIPT: starting email send')
     d = datetime.datetime.today()
 
     # Email heads
@@ -324,6 +329,7 @@ def email_report():
         s.starttls()
     if args.email_pw:
         s.login(args.email_from, args.email_pw)
+    logger.info('SCRIPT: email created; connected to endpoint.  sending email')
     s.send_message(msg)
     s.quit()
     return
@@ -343,6 +349,7 @@ dattoAPI = Datto()
 devices = dattoAPI.getDevices()
 
 # main loop
+logger.info('SCRIPT: entering main script loop')
 try:
     for device in devices:
 
