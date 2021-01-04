@@ -139,6 +139,7 @@ class Datto:
         asset_data = self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
 
         if 'code' in asset_data:
+            logger.fatal('Error encountered retrieving asset details for "{}"'.format(device['name']))
             raise Exception
 
         return asset_data
@@ -386,7 +387,11 @@ try:
         storage_available = int(device['localStorageAvailable']['size'])
         storage_used = int(device['localStorageUsed']['size'])
         total_space = storage_available + storage_used
-        available_pct = float("{0:.2f}".format(storage_used / total_space)) * 100
+        try:
+            available_pct = float("{0:.2f}".format(storage_used / total_space)) * 100
+        except ZeroDivisionError as e:
+            logger.error('"{}" calculating free space (API returned null value) on device: "{}"'.format(str(e),device['name']))
+            continue
 
         if available_pct > STORAGE_PCT_THRESHOLD:
             error_text = 'Local storage exceeds {}%.  Current Usage: {}%'.\
@@ -497,7 +502,7 @@ try:
     dattoAPI.sessionClose()
 
 except Exception as e:
-    logger.fatal('Fatal error!  Device: {} - "{}"\n{}'.format(device['name'], str(e), traceback.format_exc()))
+    logger.fatal('Device: {} - "{}"\n{}'.format(device['name'], str(e), traceback.format_exc()))
     logger.info("Datto check script finished with errors.")
     sys.exit(dattoAPI.sessionClose())
 
