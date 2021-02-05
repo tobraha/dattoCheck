@@ -6,6 +6,7 @@ import datetime
 import argparse
 import traceback
 import logging
+from retry import retry
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 from logging.handlers import RotatingFileHandler
@@ -54,7 +55,7 @@ AUTH_PASS = args.AUTH_PASS
 ### Rotating log
 logger = logging.getLogger("Datto Check")
 logger.setLevel(logging.INFO)
-handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=30000, backupCount=5)
+handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=30000, backupCount=3)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -72,6 +73,16 @@ LAST_OFFSITE_THRESHOLD = 60 * 60 * 72    # threshold for last successful off-sit
 LAST_SCREENSHOT_THRESHOLD = 60 * 60 * 48 # threshold for last screenshot taken
 ACTIONABLE_THRESHOLD = 60 * 60 * 24 * 7  # threshold for actionable alerts; one week
 
+## Define errors
+class Error(Exception):
+    """Base class for errors/exceptions"""
+    pass
+
+class DattoApiError(Error):
+    """Raised on errors encountered from the Datto API."""
+    pass
+
+
 class Datto:
     """
     Handles the session and communication with the Datto API.
@@ -87,15 +98,14 @@ class Datto:
         self.test_api_connection()
         self.xml_api_root = self.get_xml_api_data()
 
+    @retry(DattoApiError, tries=3, delay=3, logger=logger)
     def test_api_connection(self):
         '''Make a connection to the API Base URL to test connectivity and credentials.
         Store the initial device query for later use.
         '''
         self.assets = self.session.get(API_BASE_URI + '?_page=1').json()
         if 'code' in self.assets:
-            print('[!]   Critical Failure:  "{}"'.format(self.assets['message']))
-            logger.fatal('Critical Failure:  "{}"'.format(self.assets['message']))
-            sys.exit(1)
+            raise DattoApiError("Error querying API for devices")
         return
 
     def get_xml_api_data(self):
@@ -108,6 +118,7 @@ class Datto:
         xml_request.close()
         return(ET.fromstring(api_xml_data))
 
+    @retry(DattoApiError, tries=3, delay=3, logger=logger)
     def getDevices(self):
         '''
         Use the initial device API query to load all devices
@@ -124,11 +135,14 @@ class Datto:
         if totalPages > 1:
             for page in range(2, totalPages+1):
                 r = self.session.get(API_BASE_URI + '?_page=' + str(page)).json()
+                if 'code' in r:
+                    raise DattoApiError("Error querying Datto API for second page of devices")
                 devices.extend(r['items'])
 
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
+    @retry(DattoApiError, tries=3, delay=3, logger=logger)
     def getAssetDetails(self,serialNumber):
         '''
         With a device serial number (argument), query the API with it
@@ -139,8 +153,7 @@ class Datto:
         asset_data = self.session.get(API_BASE_URI + '/' + serialNumber + '/asset').json()
 
         if 'code' in asset_data:
-            logger.fatal('Error encountered retrieving asset details for "{}"'.format(device['name']))
-            raise Exception
+            raise DattoApiError('Error encountered retrieving asset details for "{}"'.format(device['name']))
 
         return asset_data
 
