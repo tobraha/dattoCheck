@@ -80,7 +80,7 @@ class Error(Exception):
 
 class DattoApiError(Error):
     """Raised on errors encountered from the Datto API."""
-
+    pass
 
 
 class Datto:
