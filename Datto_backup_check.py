@@ -287,12 +287,6 @@ def buildEmailBody(results_data):
     MSG_BODY += '</body></html>'
     return(MSG_BODY)
 
-def printErrors(errors, device_name):
-    header = '\n--DEVICE: {}'.format(device_name)
-    print(header)
-    for error in errors:
-        print(error)
-
 def display_time(seconds, granularity=2):
     # from "Mr. B":
     # https://stackoverflow.com/questions/4048651/python-function-to-convert-seconds-into-minutes-hours-and-days/24542445#answer-24542445
@@ -370,8 +364,6 @@ try:
         if device['hidden']: continue # skip hidden devices in the portal
         if device['name'] == 'backupDevice': continue # skip unnamed devices
 
-        errors = []
-
         #######################
         ###  DEVICE CHECKS  ###
         #######################
@@ -381,7 +373,6 @@ try:
             error_text = 'Appliance has {} active {}'.format(\
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
             appendError(['informational', device['name'], 'N/A', error_text])
-            errors.append(error_text)
 
         # Last checkin time
         t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
@@ -391,9 +382,7 @@ try:
 
         if timeDiff.total_seconds() >= CHECKIN_LIMIT:
             error_text = "Last checkin was {} ago.".format(display_time(timeDiff.total_seconds()))
-            errors.append(error_text)
             appendError(['critical', device['name'], 'Appliance Offline',error_text])
-            printErrors(errors, device['name'])
             continue  # do not proceed if the device is offline; go to next device
 
         # Check Local Disk Usage
@@ -410,7 +399,6 @@ try:
             error_text = 'Local storage exceeds {}%.  Current Usage: {}%'.\
                           format(str(STORAGE_PCT_THRESHOLD), str(available_pct))
             appendError(['critical', device['name'], 'Low Disk Space',error_text])
-            errors.append(error_text)
 
         ######################
         #### AGENT CHECKS ####
@@ -449,7 +437,6 @@ try:
                             agent['name'], lastSnapshotTime, backup_error)
 
                         BACKUP_FAILURE = True
-                        errors.append(error_text)
                         errorData = ['backup_error', device['name'], agent['name'],'{}'.format(lastSnapshotTime), backup_error]
 
                         if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD and agent['lastSnapshot']:
@@ -459,20 +446,17 @@ try:
 
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
-                    errors.append(error_text)
                     appendError(['informational', device['name'], agent['name'], error_text])
 
             # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
             if not agent['latestOffsite']:
                 error_text = 'No off-site backup points exist'
-                errors.append(error_text)
                 appendError(['informational', device['name'], agent['name'], error_text])
             elif not BACKUP_FAILURE:
                 lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
                 timeDiff = now - lastOffsite
                 if timeDiff.total_seconds() > LAST_OFFSITE_THRESHOLD:
                     error_text = 'Last off-site: {} ago'.format(display_time(timeDiff.total_seconds()))
-                    errors.append(error_text)
                     if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD:
                         appendError(['offsite_error', device['name'], agent['name'], error_text], 'red')
                     else:
@@ -484,7 +468,6 @@ try:
                 timeDiff = now - last_screenshot
                 if timeDiff.total_seconds() > LAST_SCREENSHOT_THRESHOLD:
                     error_text = 'Last screenshot was {} ago.'.format(display_time(timeDiff.total_seconds()))
-                    errors.append(error_text)
                     if timeDiff.total_seconds() > ACTIONABLE_THRESHOLD:
                         appendError(['screenshot_error', device['name'], agent['name'], error_text, '', 'red'])
                     else:
@@ -493,7 +476,6 @@ try:
             # check status of last screenshot attempt
             if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
                 error_text = 'Last screenshot attempt failed!'
-                errors.append(error_text)
                 screenshotURI,screenshotErrorMessage = dattoAPI.getAgentScreenshot(device['name'], agent['name'])
                 if screenshotURI == -1:
                     screenshotURI = ""
@@ -505,12 +487,9 @@ try:
                 if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
                     for error in agent['backups'][0]['localVerification']['errors']:
                         error_text = 'Local Verification Failure!\n{}\n{}'.format(error['errorType'],error['errorMessage'])
-                        errors.append(error_text)
                         appendError(['verification_error', device['name'], agent['name'], error['errorType'], error['errorMessage']])
             except Exception as e:
                 logger.error('Local Verification Check. Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
-
-        if errors: printErrors(errors, device['name'])
 
     dattoAPI.sessionClose()
 
