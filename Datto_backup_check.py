@@ -42,6 +42,7 @@ parser.add_argument('--email-pw', help='Password to use for authentication')
 parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email', required=True)
 parser.add_argument('--smtp-port', help='TCP port to use when sending the email', type=int, choices=['25', '587'], default='25')
 parser.add_argument('--starttls', help='Specify whether to use STARTTLS or not', action='store_true')
+parser.add_argument('--verbose', '-v', help='Print verbose output to stdout', action='store_true')
 
 # Parsing and using the arguments
 args = parser.parse_args()
@@ -56,9 +57,17 @@ AUTH_PASS = args.AUTH_PASS
 logger = logging.getLogger("Datto Check")
 logger.setLevel(logging.INFO)
 handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=30000, backupCount=3)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+# add a stdout log hander if verbose is enabled
+if args.verbose:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 ## Set this to True to send the report email:
 SEND_EMAIL = False
@@ -351,6 +360,10 @@ results_data = {'critical' : [],
                 'verification_error' : [],
                 'informational' : []
                 }
+
+if not args.verbose:
+    print("\nRUNNING SCRIPT (to enable console output, use '-v' or '--verbose')")
+    print("\n  -- Running Datto Check Script --")
 
 logger.info("Starting Datto Checks")
 dattoAPI = Datto()
