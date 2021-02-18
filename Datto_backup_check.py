@@ -475,15 +475,18 @@ try:
                             appendError(errorData, color='red')
                         else:
                             appendError(errorData)
+                        logger.debug(error_text)
 
                 except IndexError:
                     error_text = 'Agent does not seem to have any backups'
+                    logger.debug(f"Agent {agent['name']} does not seem to have any backups.")
                     appendError(['informational', device['name'], agent['name'], error_text])
 
             # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
             if not agent['latestOffsite']:
                 error_text = 'No off-site backup points exist'
                 appendError(['informational', device['name'], agent['name'], error_text])
+                logger.debug(f"{agent['name']} - {error_text}")
             elif not BACKUP_FAILURE:
                 lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
                 timeDiff = now - lastOffsite
@@ -493,6 +496,7 @@ try:
                         appendError(['offsite_error', device['name'], agent['name'], error_text], 'red')
                     else:
                         appendError(['offsite_error', device['name'], agent['name'], error_text])
+                    logger.debug(f"{agent['name']} - {error_text}")
 
             # check time of last screenshot
             if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
@@ -504,6 +508,7 @@ try:
                         appendError(['screenshot_error', device['name'], agent['name'], error_text, '', 'red'])
                     else:
                         appendError(['screenshot_error', device['name'], agent['name'], error_text, ''])
+                    logger.debug(f"{agent['name']} - {error_text}")
 
             # check status of last screenshot attempt
             if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
@@ -513,6 +518,7 @@ try:
                     screenshotURI = ""
                     screenshotErrorMessage = ""
                 appendError(['screenshot_error', device['name'], agent['name'], screenshotURI, screenshotErrorMessage])
+                logger.debug(f"{agent['name']} - {error_text}")
 
             # check local verification and report any errors
             try:
@@ -520,8 +526,9 @@ try:
                     for error in agent['backups'][0]['localVerification']['errors']:
                         error_text = 'Local Verification Failure!\n{}\n{}'.format(error['errorType'],error['errorMessage'])
                         appendError(['verification_error', device['name'], agent['name'], error['errorType'], error['errorMessage']])
+                        logger.debug(f"{agent['name']} - {error_text}")
             except Exception as e:
-                logger.error('Local Verification Check. Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
+                logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
 
     dattoAPI.sessionClose()
 
