@@ -213,12 +213,14 @@ class DattoCheck():
 
 
     def buildMessageBody(self):
+        "Wrapper function for buildHtmlEmail()"
+
         try:
-            MSG_BODY = self.buildEmailBody(results_data).strip('\n')
+            MSG_BODY = self.buildHtmlEmail(self.results_data).strip('\n')
         except Exception as e:
             self.logger.error('Failed to build email body')
-            MSG_BODY = '<pre>\nFailed to build HTML email report.  This was likely caused by the API returning corrupt (or empty) data for a device.\n\n'
-            MSG_BODY += 'Error & Traceback:\n\n"{}"\n{}</pre>'.format(str(e), traceback.format_exc())
+            MSG_BODY = '<pre>\nFailed to build HTML email report.  This was likely caused by the API returning corrupt (or empty) data for a device.<br><br>'
+            MSG_BODY += 'Error & Traceback:<br><br>"{}"<br>{}</pre>'.format(str(e), traceback.format_exc())
         return MSG_BODY
 
     def email_report(self):
@@ -429,7 +431,7 @@ class DattoCheck():
             self.logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
         return
 
-    def buildEmailBody(self, results_data):
+    def buildHtmlEmail(self, results_data):
         """Compile all results into HTML tables based on error level."""
 
         self.logger.info('Building HTML email message body.')
