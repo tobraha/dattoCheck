@@ -1,1 +1,1 @@
-from .datto import Datto
+from .datto import Datto, DattoCheck
