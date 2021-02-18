@@ -156,7 +156,7 @@ class DattoCheck():
                         'screenshot_error' : [],
                         'verification_error' : [],
                         'informational' : []
-                        }        
+                        }
 
         self.setupLogging()
         self.datto = Datto(args.AUTH_USER, args.AUTH_PASS, args.XML_API_KEY)
@@ -182,7 +182,7 @@ class DattoCheck():
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
         return
-    
+
     def display_time(self, seconds, granularity=2):
         """
         Converts an integer (number of seconds) into a readable time format \
@@ -309,7 +309,7 @@ class DattoCheck():
 
     def deviceChecks(self,device):
         """Performs device checks on an \"asset\" object retrieved from the API.
-        
+
         Calls self.agentChecks() for the device passed.
         """
 
@@ -324,7 +324,7 @@ class DattoCheck():
         self.checkActiveTickets(device)
         self.checkLastCheckin(device)
         self.checkDiskUsage(device)
-        
+
         # Run agent checks
         assetDetails = self.datto.getAssetDetails(device['serialNumber'])
         for agent in assetDetails:
@@ -427,7 +427,7 @@ class DattoCheck():
                     self.logger.debug(f"{agent['name']} - {error_text}")
         except Exception as e:
             self.logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
-        return    
+        return
 
     def buildEmailBody(self, results_data):
         """Compile all results into HTML tables based on error level."""
@@ -510,7 +510,7 @@ class DattoCheck():
         if color: error_detail.append(color)
         self.results_data[error_detail[0]].append(error_detail)
         return
-    
+
     def run(self):
         "Run Datto Check functions."
 
@@ -521,7 +521,7 @@ class DattoCheck():
 
         if self.args.send_email:
             self.email_report()
-            
+
         self.datto.sessionClose()
         self.logger.info("Datto check script complete.")
         return
