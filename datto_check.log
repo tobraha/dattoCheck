@@ -1,0 +1,7 @@
+2021-02-19 13:37:33,751 - INFO - Creating new Python requests session with the API endpoint.
+2021-02-19 13:37:33,751 - INFO - Retrieving initial asset list.
+2021-02-19 13:37:34,545 - INFO - Retrieving Datto XML API data.
+2021-02-19 13:37:36,859 - INFO - Querying API for additional devices.
+2021-02-19 13:37:37,250 - INFO - Starting Datto Check Script
+2021-02-19 13:37:53,803 - INFO - Sending email report to: ['tharris@ambitionsgroup.com']
+2021-02-19 13:37:53,804 - INFO - Building HTML email message body.

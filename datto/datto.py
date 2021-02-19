@@ -18,7 +18,7 @@ class Datto():
     def __init__(self, user, password, xmlKey):
         '''Constructor - initialize Python Requests Session and get XML API data'''
 
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger("Datto Check")
         self.logger.info('Creating new Python requests session with the API endpoint.')
         self.session = requests.Session()
         self.session.auth = (user, password)
@@ -27,7 +27,7 @@ class Datto():
         self.test_api_connection()
         self.xml_api_root = self.get_xml_api_data(xmlKey)
 
-    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger())
+    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger("Datto Check"))
     def test_api_connection(self):
         """Make a connection to the API Base URL to test connectivity and credentials.
         Store the initial device query for later use.
@@ -51,7 +51,7 @@ class Datto():
         xml_request.close()
         return(ET.fromstring(api_xml_data))
 
-    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger())
+    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger("Datto Check"))
     def getDevices(self):
         """
         Use the initial device API query to load all devices
@@ -76,7 +76,7 @@ class Datto():
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
-    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger())
+    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger("Datto Check"))
     def getAssetDetails(self,serialNumber):
         """
         With a device serial number (argument), query the API with it
@@ -89,7 +89,7 @@ class Datto():
         asset_data = self.session.get(config.API_BASE_URI + '/' + serialNumber + '/asset').json()
 
         if 'code' in asset_data:
-            raise config.DattoApiError(f'Error encountered retrieving asset details for "{serialNumber}"'))
+            raise config.DattoApiError(f'Error encountered retrieving asset details for "{serialNumber}"')
 
         return asset_data
 
