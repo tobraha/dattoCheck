@@ -94,7 +94,7 @@ class Datto():
         return asset_data
 
     def rebuildScreenshotUrl(self,url):
-        '''Rebuild the URL using the latest API calls'''
+        '''Rebuild the URL using the new images URL.'''
 
         baseUrl = 'https://device.dattobackup.com/sirisReporting/images/latest'
 
@@ -105,6 +105,10 @@ class Datto():
         return newUrl
 
     def getAgentScreenshot(self,deviceName,agentName):
+        """Search the XML API output for a screenshot URL for the device & agent.
+
+        Returns:  the screenshot URL as well as the error message and/or OCR.
+        """
 
         self.logger.debug(f"Retrieving screenshot URL for '{agentName}' on '{deviceName}'")
         # Find 'Device' elements.  If it matches, find the target agent and get screenshot URI.
@@ -267,7 +271,8 @@ class DattoCheck():
         return
 
     def checkActiveTickets(self, device):
-        # Check to see if there are any active tickets
+        "Check whether the device has any active tickets open."
+
         if device['activeTickets']:
             error_text = 'Appliance has {} active {}'.format(\
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
@@ -360,7 +365,7 @@ class DattoCheck():
                     backup_error = agent['backups'][0]['backup']['errorMessage']
                     if not backup_error:
                         backup_error = "No error message available"
-                    # check if local backup points exist
+                    # if local backups exist, get last successful backup time
                     if agent['lastSnapshot']:
                         lastSnapshotTime = str(self.display_time(timeDiff.total_seconds())) + ' ago'
                     else:
@@ -382,7 +387,7 @@ class DattoCheck():
                 self.logger.debug(f"Agent {agent['name']} does not seem to have any backups.")
                 self.appendError(['informational', device['name'], agent['name'], error_text])
 
-        # Check time since latest off-site point; alert if more than LAST_OFFSITE_THRESHOLD
+        # Check if latest off-site point exceeds LAST_OFFSITE_THRESHOLD
         if not agent['latestOffsite']:
             error_text = 'No off-site backup points exist'
             self.appendError(['informational', device['name'], agent['name'], error_text])
@@ -398,7 +403,7 @@ class DattoCheck():
                     self.appendError(['offsite_error', device['name'], agent['name'], error_text])
                 self.logger.debug(f"{agent['name']} - {error_text}")
 
-        # check time of last screenshot
+        # check if time of latest screenshot exceeds LAST_SCREENSHOT_THRESHOLD
         if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
             last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
             timeDiff = now - last_screenshot
