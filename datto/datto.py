@@ -172,7 +172,7 @@ class DattoCheck():
         # Add rotating log
         self.logger = logging.getLogger("Datto Check")
         self.logger.setLevel(logging.DEBUG)
-        handler = RotatingFileHandler("/var/log/datto_check.log", maxBytes=30000, backupCount=3)
+        handler = RotatingFileHandler(config.LOG_FILE, maxBytes=30000, backupCount=3)
         handler.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
@@ -238,7 +238,6 @@ class DattoCheck():
         """
 
         import smtplib
-        from email.mime.application import MIMEApplication
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
 
