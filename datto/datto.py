@@ -89,7 +89,7 @@ class Datto():
         asset_data = self.session.get(config.API_BASE_URI + '/' + serialNumber + '/asset').json()
 
         if 'code' in asset_data:
-            raise config.DattoApiError('Error encountered retrieving asset details for "{}"'.format(asset_data['name']))
+            raise config.DattoApiError(f'Error encountered retrieving asset details for "{serialNumber}"'))
 
         return asset_data
 
