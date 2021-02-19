@@ -83,7 +83,7 @@ usage: main.py [-h] [-v] [--send-email] --email-to EMAIL_TO [--email-cc EMAIL_CC
 Using the Datto API, get information on current status of backups, screenshots, local verification,
 and device issues. To send the results as an email, provide the optional email parameters.
 
-positional arguments:123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f
+positional arguments:
   AUTH_USER             Datto API User (REST API Public Key)
   AUTH_PASS             Datto API Password (REST API Secret Key
   XML_API_KEY           Datto XML API Key
