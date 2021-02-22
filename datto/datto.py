@@ -407,7 +407,7 @@ class DattoCheck():
             last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
             timeDiff = now - last_screenshot
             if timeDiff.total_seconds() > config.LAST_SCREENSHOT_THRESHOLD:
-                error_text = 'Last screenshot was {} ago.'.format(display_time(timeDiff.total_seconds()))
+                error_text = 'Last screenshot was {} ago.'.format(self.display_time(timeDiff.total_seconds()))
                 if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD:
                     self.appendError(['screenshot_error', device['name'], agent['name'], error_text, '', 'red'])
                 else:
