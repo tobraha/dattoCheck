@@ -7,6 +7,8 @@ When building this, I did not have running this on Windows in mind, so I have on
 
 # Setup
 
+Python version 3.6 or higher is required to run this.
+
 You'll need a few pieces of information for this script to run properly.
 
 **Datto API Keys**
