@@ -155,12 +155,12 @@ class DattoCheck():
 
         # initialize results_data, used for generating html report
         self.results_data = {'critical' : [],
-                        'backup_error' : [],
-                        'offsite_error' : [],
-                        'screenshot_error' : [],
-                        'verification_error' : [],
-                        'informational' : []
-                        }
+                            'backup_error' : [],
+                            'offsite_error' : [],
+                            'screenshot_error' : [],
+                            'verification_error' : [],
+                            'informational' : []
+                            }
 
         self.setupLogging()
         self.datto = Datto(args.AUTH_USER, args.AUTH_PASS, args.XML_API_KEY)
