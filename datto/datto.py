@@ -27,7 +27,7 @@ class Datto():
         self.test_api_connection()
         self.xml_api_root = self.get_xml_api_data(xmlKey)
 
-    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger("Datto Check"))
+    @retry(config.DattoApiError, tries=3, delay=3)
     def test_api_connection(self):
         """Make a connection to the API Base URL to test connectivity and credentials.
         Store the initial device query for later use.
@@ -51,7 +51,7 @@ class Datto():
         xml_request.close()
         return(ET.fromstring(api_xml_data))
 
-    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger("Datto Check"))
+    @retry(config.DattoApiError, tries=3, delay=3)
     def getDevices(self):
         """
         Use the initial device API query to load all devices
@@ -76,7 +76,7 @@ class Datto():
         devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
-    @retry(config.DattoApiError, tries=3, delay=3, logger=logging.getLogger("Datto Check"))
+    @retry(config.DattoApiError, tries=3, delay=3)
     def getAssetDetails(self,serialNumber):
         """
         With a device serial number (argument), query the API with it
@@ -142,7 +142,6 @@ class Datto():
     def sessionClose(self):
         """Close the "requests" session"""
 
-        self.logger.info('Closing requests session')
         return self.session.close()
 
 class DattoCheck():
@@ -163,6 +162,7 @@ class DattoCheck():
                             }
 
         self.setupLogging()
+        self.logger.info("Starting Datto Check Script")
         self.datto = Datto(args.AUTH_USER, args.AUTH_PASS, args.XML_API_KEY)
         self.devices = self.datto.getDevices()
 
@@ -241,7 +241,7 @@ class DattoCheck():
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
 
-        self.logger.info("Sending email report to: {}".format(self.args.email_to))
+        self.logger.info("Preparing and sending email report to: {}".format(self.args.email_to))
         d = datetime.datetime.today()
 
         # Email heads
@@ -264,6 +264,7 @@ class DattoCheck():
                 s.login(self.args.email_from, self.args.email_pw)
             s.send_message(msg)
             s.quit()
+            self.logger.info("Email report sent.")
         except Exception as e:
             self.logger.critical(f"Failed to send email message!\n  {str(e)}")
             pass
@@ -520,14 +521,18 @@ class DattoCheck():
     def run(self):
         "Run Datto Check functions."
 
-        self.logger.info("Starting Datto Check Script")
+        self.logger.info("Starting device and agent checks.")
 
         for device in self.devices:
             self.deviceChecks(device)
 
+        self.logger.info("API queries complete; closing Requests session.")
+        self.datto.sessionClose()
+
+        self.logger.info("Device and agent checks complete.")
+
         if self.args.send_email:
             self.email_report()
 
-        self.datto.sessionClose()
         self.logger.info("Datto check script complete.")
         return
