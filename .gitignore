@@ -2,3 +2,4 @@ __pycache__
 venv
 *.wp*
 .vscode
+datto_check.log
