@@ -3,6 +3,7 @@
 # Import
 import sys
 import argparse
+from datto import DattoCheck
 from config import *
 
 def main():
@@ -37,8 +38,7 @@ def main():
     parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email')
     parser.add_argument('--smtp-port',
                         help='TCP port to use when sending the email; default=25',
-                        type=int, 
-                        choices=['25', '587'], 
+                        choices=['25','465','587'],
                         default='25')
     parser.add_argument('--starttls', help='Specify whether to use STARTTLS or not', action='store_true')
 
@@ -49,8 +49,6 @@ def main():
         if not args.email_from or not args.email_to or not args.mx_endpoint:
             raise InvalidEmailSettings("You must have at least a sender, recipient, and MX endpoint.")
             sys.exit(1)
-
-    from datto import DattoCheck
 
     dattoCheck = DattoCheck(args)
     dattoCheck.run()
