@@ -255,7 +255,7 @@ class DattoCheck():
         msg.attach(MIMEText(body, 'html'))
 
         # Send email
-        s = smtplib.SMTP(host=self.args.mx_endpoint, port=self.args.smtp_port)
+        s = smtplib.SMTP(host=self.args.mx_endpoint, port=int(self.args.smtp_port))
 
         try:
             if self.args.starttls:
