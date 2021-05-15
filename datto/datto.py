@@ -11,6 +11,9 @@ from urllib.parse import urlparse
 from logging.handlers import RotatingFileHandler
 from xml.etree import ElementTree as ET
 
+# Internal Imports
+from base import DattoAsset
+
 class Datto():
     """
     Handles the session and communication with the Datto API.
@@ -315,7 +318,7 @@ class DattoCheck():
         return
 
     def deviceChecks(self,device):
-        """Performs device checks on an \"asset\" object retrieved from the API.
+        """Performs device checks on an "asset" object retrieved from the API.
 
         Calls self.agentChecks() for the device passed.
         """
@@ -335,6 +338,7 @@ class DattoCheck():
         # Run agent checks
         assetDetails = self.datto.getAssetDetails(device['serialNumber'])
         for agent in assetDetails:
+            agent = DattoAsset(agent)
             self.agentChecks(agent, device)
         return
 
