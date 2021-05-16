@@ -7,3 +7,5 @@ from the Datto API.
 datto.py:
 class Datto() - session & communication with the API
 class DattoCheck() - operational functions to run the checks"""
+
+from .datto import DattoCheck
