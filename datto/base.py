@@ -15,3 +15,4 @@ class DattoAsset():
         self.last_screenshot_url = agent['lastScreenshotUrl']
         self.fqdn = agent['fqdn']
         self.backups = agent['backups']
+        self.type = agent['type']

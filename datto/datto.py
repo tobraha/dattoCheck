@@ -12,7 +12,7 @@ from logging.handlers import RotatingFileHandler
 from xml.etree import ElementTree as ET
 
 # Internal Imports
-from base import DattoAsset
+from .base import DattoAsset
 
 class Datto():
     """
@@ -346,11 +346,11 @@ class DattoCheck():
         "Perform agent checks"
 
         try:
-            if agent['isArchived']:
-                self.logger.debug(f"Agent {agent['name']} is archived.")
+            if agent.is_archived:
+                self.logger.debug(f"Agent {agent.name} is archived.")
                 return
-            if agent['isPaused']:
-                self.logger.debug(f"Agent {agent['name']} is paused.")
+            if agent.is_paused:
+                self.logger.debug(f"Agent {agent.name} is paused.")
                 return
         except Exception as e:
             self.logger.critical('"{}" (device: "{}")'.format(str(e), device['name']))
@@ -359,28 +359,28 @@ class DattoCheck():
         BACKUP_FAILURE = False
 
         # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
-        lastBackupTime = datetime.datetime.fromtimestamp(agent['lastSnapshot'], datetime.timezone.utc)
+        lastBackupTime = datetime.datetime.fromtimestamp(agent.last_snapshot, datetime.timezone.utc)
         now = datetime.datetime.now(datetime.timezone.utc)
         timeDiff = now - lastBackupTime
 
         if timeDiff.total_seconds() > config.LAST_BACKUP_THRESHOLD:
             try:
-                if agent['backups'][0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
-                    backup_error = agent['backups'][0]['backup']['errorMessage']
+                if agent.backups[0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
+                    backup_error = agent.backups[0]['backup']['errorMessage']
                     if not backup_error:
                         backup_error = "No error message available"
                     # if local backups exist, get last successful backup time
-                    if agent['lastSnapshot']:
+                    if agent.last_snapshot:
                         lastSnapshotTime = str(self.display_time(timeDiff.total_seconds())) + ' ago'
                     else:
                         lastSnapshotTime = "(no local snapshots exist)"
                     error_text = '-- "{}": Last scheduled backup failed; last backup was: {}. Error: "{}"'.format(\
-                        agent['name'], lastSnapshotTime, backup_error)
+                        agent.name, lastSnapshotTime, backup_error)
 
                     BACKUP_FAILURE = True
-                    errorData = ['backup_error', device['name'], agent['name'],'{}'.format(lastSnapshotTime), backup_error]
+                    errorData = ['backup_error', device['name'], agent.name,'{}'.format(lastSnapshotTime), backup_error]
 
-                    if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD and agent['lastSnapshot']:
+                    if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD and agent.last_snapshot:
                         self.appendError(errorData, color='red')
                     else:
                         self.appendError(errorData)
@@ -388,56 +388,56 @@ class DattoCheck():
 
             except IndexError:
                 error_text = 'Agent does not seem to have any backups'
-                self.logger.debug(f"Agent {agent['name']} does not seem to have any backups.")
-                self.appendError(['informational', device['name'], agent['name'], error_text])
+                self.logger.debug(f"Agent {agent.name} does not seem to have any backups.")
+                self.appendError(['informational', device['name'], agent.name, error_text])
 
         # Check if latest off-site point exceeds LAST_OFFSITE_THRESHOLD
-        if not agent['latestOffsite']:
+        if not agent.latest_offsite:
             error_text = 'No off-site backup points exist'
-            self.appendError(['informational', device['name'], agent['name'], error_text])
-            self.logger.debug(f"{agent['name']} - {error_text}")
+            self.appendError(['informational', device['name'], agent.name, error_text])
+            self.logger.debug(f"{agent.name} - {error_text}")
         elif not BACKUP_FAILURE:
-            lastOffsite = datetime.datetime.fromtimestamp(agent['latestOffsite'], datetime.timezone.utc)
+            lastOffsite = datetime.datetime.fromtimestamp(agent.latest_offsite, datetime.timezone.utc)
             timeDiff = now - lastOffsite
             if timeDiff.total_seconds() > config.LAST_OFFSITE_THRESHOLD:
                 error_text = 'Last off-site: {} ago'.format(self.display_time(timeDiff.total_seconds()))
                 if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD:
-                    self.appendError(['offsite_error', device['name'], agent['name'], error_text], 'red')
+                    self.appendError(['offsite_error', device['name'], agent.name, error_text], 'red')
                 else:
-                    self.appendError(['offsite_error', device['name'], agent['name'], error_text])
-                self.logger.debug(f"{agent['name']} - {error_text}")
+                    self.appendError(['offsite_error', device['name'], agent.name, error_text])
+                self.logger.debug(f"{agent.name} - {error_text}")
 
         # check if time of latest screenshot exceeds LAST_SCREENSHOT_THRESHOLD
-        if agent['type'] == 'agent' and agent['lastScreenshotAttempt'] and not BACKUP_FAILURE:
-            last_screenshot = datetime.datetime.fromtimestamp(agent['lastScreenshotAttempt'], datetime.timezone.utc)
+        if agent.type == 'agent' and agent.last_screenshot_attempt and not BACKUP_FAILURE:
+            last_screenshot = datetime.datetime.fromtimestamp(agent.last_screenshot_attempt, datetime.timezone.utc)
             timeDiff = now - last_screenshot
             if timeDiff.total_seconds() > config.LAST_SCREENSHOT_THRESHOLD:
                 error_text = 'Last screenshot was {} ago.'.format(self.display_time(timeDiff.total_seconds()))
                 if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD:
-                    self.appendError(['screenshot_error', device['name'], agent['name'], error_text, '', 'red'])
+                    self.appendError(['screenshot_error', device['name'], agent.name, error_text, '', 'red'])
                 else:
-                    self.appendError(['screenshot_error', device['name'], agent['name'], error_text, ''])
-                self.logger.debug(f"{agent['name']} - {error_text}")
+                    self.appendError(['screenshot_error', device['name'], agent.name, error_text, ''])
+                self.logger.debug(f"{agent.name} - {error_text}")
 
         # check status of last screenshot attempt
-        if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['lastScreenshotAttemptStatus'] == False:
+        if not BACKUP_FAILURE and agent.type == 'agent' and agent.last_screenshot_attempt_status == False:
             error_text = 'Last screenshot attempt failed!'
-            screenshotURI,screenshotErrorMessage = self.datto.getAgentScreenshot(device['name'], agent['name'])
+            screenshotURI,screenshotErrorMessage = self.datto.getAgentScreenshot(device['name'], agent.name)
             if screenshotURI == -1:
                 screenshotURI = ""
                 screenshotErrorMessage = ""
-            self.appendError(['screenshot_error', device['name'], agent['name'], screenshotURI, screenshotErrorMessage])
-            self.logger.debug(f"{agent['name']} - {error_text}")
+            self.appendError(['screenshot_error', device['name'], agent.name, screenshotURI, screenshotErrorMessage])
+            self.logger.debug(f"{agent.name} - {error_text}")
 
         # check local verification and report any errors
         try:
-            if not BACKUP_FAILURE and agent['type'] == 'agent' and agent['backups'] and agent['backups'][0]['localVerification']['errors']:
-                for error in agent['backups'][0]['localVerification']['errors']:
+            if not BACKUP_FAILURE and agent.type == 'agent' and agent.backups and agent.backups[0]['localVerification']['errors']:
+                for error in agent.backups[0]['localVerification']['errors']:
                     error_text = 'Local Verification Failure!\n{}\n{}'.format(error['errorType'],error['errorMessage'])
-                    self.appendError(['verification_error', device['name'], agent['name'], error['errorType'], error['errorMessage']])
-                    self.logger.debug(f"{agent['name']} - {error_text}")
+                    self.appendError(['verification_error', device['name'], agent.name, error['errorType'], error['errorMessage']])
+                    self.logger.debug(f"{agent.name} - {error_text}")
         except Exception as e:
-            self.logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent['name'], str(e)))
+            self.logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent.name, str(e)))
         return
 
     def buildHtmlEmail(self, results_data):
