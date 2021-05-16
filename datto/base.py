@@ -1,5 +1,6 @@
 class DattoAsset():
-    '''Class to normalize a Datto Asset Object'''
+    '''Class to normalize a Datto Asset 
+    as an object'''
     def __init__(self, agent):
         self.name = agent['name']
         self.local_ip = agent['localIp']

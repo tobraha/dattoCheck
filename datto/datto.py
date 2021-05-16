@@ -1,15 +1,15 @@
 import logging
 import datetime
 import traceback
-import config
 import sys
 
 # Import: Others
-import requests
-from retry import retry
 from urllib.parse import urlparse
 from logging.handlers import RotatingFileHandler
 from xml.etree import ElementTree as ET
+from retry import retry
+import requests
+import config
 
 # Internal Imports
 from .base import DattoAsset
@@ -18,7 +18,7 @@ class Datto():
     """
     Handles the session and communication with the Datto API.
     """
-    def __init__(self, user, password, xmlKey):
+    def __init__(self, user, password, xml_key):
         '''Constructor - initialize Python Requests Session and get XML API data'''
 
         self.logger = logging.getLogger("Datto Check")
@@ -28,7 +28,7 @@ class Datto():
         self.session.headers.update({"Content-Type" : "application/json"})
 
         self.test_api_connection()
-        self.xml_api_root = self.get_xml_api_data(xmlKey)
+        self.xml_api_root = self.get_xml_api_data(xml_key)
 
     @retry(config.DattoApiError, tries=3, delay=3)
     def test_api_connection(self):
@@ -40,22 +40,22 @@ class Datto():
         self.assets = self.session.get(config.API_BASE_URI + '?_page=1').json()
         if 'code' in self.assets:
             raise config.DattoApiError("Error querying API for devices")
-        return
 
-    def get_xml_api_data(self, xmlKey):
+
+    def get_xml_api_data(self, xml_key):
         """Retrieve and parse data from XML API
         Returns xml ElementTree of Datto XML content"""
 
         self.logger.info('Retrieving Datto XML API data.')
         xml_request = requests.Session()
         xml_request.headers.update({"Content-Type" : "application/xml"})
-        url = config.XML_API_BASE_URI + '/' + xmlKey
+        url = config.XML_API_BASE_URI + '/' + xml_key
         api_xml_data = xml_request.get(url).text
         xml_request.close()
-        return(ET.fromstring(api_xml_data))
+        return ET.fromstring(api_xml_data)
 
     @retry(config.DattoApiError, tries=3, delay=3)
-    def getDevices(self):
+    def get_devices(self):
         """
         Use the initial device API query to load all devices
          -Check pagination details and iterate through any additional pages
@@ -65,22 +65,23 @@ class Datto():
 
         devices = []
         devices.extend(self.assets['items']) # load the first (up to) 100 devices into device list
-        totalPages = self.assets['pagination']['totalPages'] # see how many pages there are
+        total_pages = self.assets['pagination']['totalPages'] # see how many pages there are
 
         # new request for each page; extend additional 'items' to devices list
-        if totalPages > 1:
-            for page in range(2, totalPages+1):
+        if total_pages > 1:
+            for page in range(2, total_pages+1):
                 self.logger.info("Querying API for additional devices.")
-                r = self.session.get(config.API_BASE_URI + '?_page=' + str(page)).json()
-                if 'code' in r:
-                    raise config.DattoApiError("Error querying Datto API for second page of devices")
-                devices.extend(r['items'])
+                result = self.session.get(config.API_BASE_URI + '?_page=' + str(page)).json()
+                if 'code' in result:
+                    raise config.DattoApiError("Error querying Datto API for \
+                    second page of devices")
+                devices.extend(result['items'])
 
-        devices = sorted(devices, key= lambda i: i['name'].upper()) # let's sort this bad boy!
+        devices = sorted(devices, key=lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
     @retry(config.DattoApiError, tries=3, delay=3)
-    def getAssetDetails(self,serialNumber):
+    def get_asset_details(self, serial_number):
         """
         With a device serial number (argument), query the API with it
         to retrieve JSON data with the asset info for that device.
@@ -89,37 +90,28 @@ class Datto():
         """
 
         self.logger.debug("Querying API for device asset details.")
-        asset_data = self.session.get(config.API_BASE_URI + '/' + serialNumber + '/asset').json()
+        asset_data = self.session.get(config.API_BASE_URI + '/' + serial_number + '/asset').json()
 
         if 'code' in asset_data:
-            raise config.DattoApiError(f'Error encountered retrieving asset details for "{serialNumber}"')
+            raise config.DattoApiError(f'Error encountered retrieving \
+            asset details for "{serial_number}"')
 
         return asset_data
 
-    def rebuildScreenshotUrl(self,url):
-        '''Rebuild the URL using the new images URL.'''
 
-        baseUrl = 'https://device.dattobackup.com/sirisReporting/images/latest'
-
-        o = urlparse(url)
-        imageName = o.query.split('/')[-1]
-        newUrl = '/'.join([baseUrl, imageName])
-
-        return newUrl
-
-    def getAgentScreenshot(self,deviceName,agentName):
+    def get_agent_screenshot(self, device_name, agent_name):
         """Search the XML API output for a screenshot URL for the device & agent.
 
         Returns:  the screenshot URL as well as the error message and/or OCR.
         """
 
-        self.logger.debug(f"Retrieving screenshot URL for '{agentName}' on '{deviceName}'")
+        self.logger.debug("Retrieving screenshot URL for %s on %s", agent_name, device_name)
         # Find 'Device' elements.  If it matches, find the target agent and get screenshot URI.
         for xml_device in self.xml_api_root.findall('Device'):
 
             # Iterate through devices to find the target device
             xml_hostname = xml_device.find('Hostname')
-            if xml_hostname.text == deviceName:
+            if xml_hostname.text == device_name:
 
                 # Iterate through device agents to find target agent
                 backup_volumes = xml_device.find('BackupVolumes')
@@ -127,22 +119,22 @@ class Datto():
                     xml_agent_name = backup_volume.find('Volume')
 
                     # If agent name matches, get screenshot URI and return
-                    if xml_agent_name.text == agentName:
-                        screenshotURI = ""
-                        screenshotURI = backup_volume.find('ScreenshotImagePath').text
+                    if xml_agent_name.text == agent_name:
+                        screenshot_uri = ""
+                        screenshot_uri = backup_volume.find('ScreenshotImagePath').text
 
                         #check to see if the old API is being used; correct if so
-                        if 'partners.dattobackup.com' in screenshotURI:
-                            screenshotURI = self.rebuildScreenshotUrl(screenshotURI)
+                        if 'partners.dattobackup.com' in screenshot_uri:
+                            screenshot_uri = rebuild_screenshot_url(screenshot_uri)
 
                         if backup_volume.find('ScreenshotError').text:
-                            screenshotErrorMessage = backup_volume.find('ScreenshotError').text
+                            screenshot_error_message = backup_volume.find('ScreenshotError').text
                         else:
-                            screenshotErrorMessage = "[error message not available]"
-                        return(screenshotURI, screenshotErrorMessage)
-        return(-1,-1)
+                            screenshot_error_message = "[error message not available]"
+                        return screenshot_uri, screenshot_error_message
+        return(-1, -1)
 
-    def sessionClose(self):
+    def session_close(self):
         """Close the "requests" session"""
 
         return self.session.close()
@@ -157,19 +149,19 @@ class DattoCheck():
 
         # initialize results_data, used for generating html report
         self.results_data = {'critical' : [],
-                            'backup_error' : [],
-                            'offsite_error' : [],
-                            'screenshot_error' : [],
-                            'verification_error' : [],
-                            'informational' : []
+                             'backup_error' : [],
+                             'offsite_error' : [],
+                             'screenshot_error' : [],
+                             'verification_error' : [],
+                             'informational' : []
                             }
 
-        self.setupLogging()
+        self.setup_logging()
         self.logger.info("Starting Datto Check Script")
         self.datto = Datto(args.AUTH_USER, args.AUTH_PASS, args.XML_API_KEY)
-        self.devices = self.datto.getDevices()
+        self.devices = self.datto.get_devices()
 
-    def setupLogging(self):
+    def setup_logging(self):
         "Configure rotating log to file and optional stdout log stream."
 
         # Add rotating log
@@ -188,47 +180,18 @@ class DattoCheck():
             formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
-        return
-
-    def display_time(self, seconds, granularity=2):
-        """
-        Converts an integer (number of seconds) into a readable time format \
-        with certain granularity.
-
-        From "Mr. B":
-        https://stackoverflow.com/questions/4048651/python-function-to-convert-seconds-into-minutes-hours-and-days/24542445#answer-24542445
-        """
-        intervals = (
-            ('weeks', 604800),  # 60 * 60 * 24 * 7
-            ('days', 86400),    # 60 * 60 * 24
-            ('hours', 3600),    # 60 * 60
-            ('minutes', 60),
-            ('seconds', 1),
-            )
-
-        seconds = int(seconds)
-        result = []
-
-        for name, count in intervals:
-            value = seconds // count
-            if value:
-                seconds -= value * count
-                if value == 1:
-                    name = name.rstrip('s')
-                result.append("{} {}".format(value, name))
-        return ', '.join(result[:granularity])
 
 
-    def buildMessageBody(self):
+    def build_message_body(self):
         "Wrapper function for buildHtmlEmail()"
 
         try:
-            MSG_BODY = self.buildHtmlEmail(self.results_data).strip('\n')
+            msg_body = self.build_html_email(self.results_data).strip('\n')
         except Exception as e:
             self.logger.error('Failed to build email body')
-            MSG_BODY = '<pre>\nFailed to build HTML email report.  This was likely caused by the API returning corrupt (or empty) data for a device.<br><br>'
-            MSG_BODY += 'Error & Traceback:<br><br>"{}"<br>{}</pre>'.format(str(e), traceback.format_exc())
-        return MSG_BODY
+            msg_body = '<pre>\nFailed to build HTML email report. This was likely caused by the API returning corrupt (or empty) data for a device.<br><br>'
+            msg_body += 'Error & Traceback:<br><br>"{}"<br>{}</pre>'.format(str(e), traceback.format_exc())
+        return msg_body
 
     def email_report(self):
         """Email error report to listed recipients.
@@ -254,7 +217,7 @@ class DattoCheck():
         msg['To'] = ', '.join(self.args.email_to)
         if self.args.email_cc:
             msg['Cc'] = ', '.join(self.args.email_cc)
-        body = self.buildMessageBody()
+        body = self.build_message_body()
         msg.attach(MIMEText(body, 'html'))
 
         # Send email
@@ -269,36 +232,36 @@ class DattoCheck():
             s.quit()
             self.logger.info("Email report sent.")
         except Exception as e:
-            self.logger.critical(f"Failed to send email message!\n  {str(e)}")
-            pass
-        return
+            self.logger.critical("Failed to send email message:\n  %s", str(e))
 
-    def checkActiveTickets(self, device):
+
+    def check_active_tickets(self, device):
         "Check whether the device has any active tickets open."
 
         if device['activeTickets']:
             error_text = 'Appliance has {} active {}'.format(\
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
-            self.appendError(['informational', device['name'], 'N/A', error_text])
-            self.logger.debug(f"{device['name']}: {error_text}")
-        return
+            self.append_error(['informational', device['name'], 'N/A', error_text])
+            self.logger.debug("%s:  %s", device['name'], error_text)
+
 
     def checkLastCheckin(self, device):
         "Checks the last time the device checked in to the Datto Portal."
 
-        t = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
-        device_checkin = datetime.datetime.strptime(t, "%Y-%m-%dT%H:%M:%S%z")
+        time_string = device['lastSeenDate'][:22] + device['lastSeenDate'][23:] # remove the colon from time zone
+        device_checkin = datetime.datetime.strptime(time_string,
+                                                    "%Y-%m-%dT%H:%M:%S%z")
         now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
-        timeDiff = now - device_checkin
+        time_diff = now - device_checkin
 
-        if timeDiff.total_seconds() >= config.CHECKIN_LIMIT:
-            error_text = "Last checkin was {} ago.".format(self.display_time(timeDiff.total_seconds()))
-            self.appendError(['critical', device['name'], 'Appliance Offline', error_text])
+        if time_diff.total_seconds() >= config.CHECKIN_LIMIT:
+            error_text = "Last checkin was {} ago.".format(display_time(timeDiff.total_seconds()))
+            self.append_error(['critical', device['name'], 'Appliance Offline', error_text])
             self.logger.debug(f"{device['name']}: Appliance Offline")
             return  # do not proceed if the device is offline; go to next device
-        return
 
-    def checkDiskUsage(self, device):
+
+    def check_disk_usage(self, device):
         "Check disk usage reported by the API and calculate percentages"
 
         storage_available = int(device['localStorageAvailable']['size'])
@@ -313,9 +276,9 @@ class DattoCheck():
         if available_pct > config.STORAGE_PCT_THRESHOLD:
             error_text = 'Local storage exceeds {}%.  Current Usage: {}%'.\
                         format(str(config.STORAGE_PCT_THRESHOLD), str(available_pct))
-            self.appendError(['critical', device['name'], 'Low Disk Space',error_text])
-            self.logger.debug(f"{device['name']}: {error_text}")
-        return
+            self.append_error(['critical', device['name'], 'Low Disk Space', error_text])
+            self.logger.debug("%s:  %s", device['name'], error_text)
+
 
     def deviceChecks(self,device):
         """Performs device checks on an "asset" object retrieved from the API.
@@ -331,18 +294,18 @@ class DattoCheck():
         if device['name'] == 'backupDevice': 
             return
 
-        self.checkActiveTickets(device)
+        self.check_active_tickets(device)
         self.checkLastCheckin(device)
-        self.checkDiskUsage(device)
+        self.check_disk_usage(device)
 
         # Run agent checks
-        assetDetails = self.datto.getAssetDetails(device['serialNumber'])
+        assetDetails = self.datto.get_asset_details(device['serialNumber'])
         for agent in assetDetails:
             agent = DattoAsset(agent)
-            self.agentChecks(agent, device)
+            self.agent_checks(agent, device)
         return
 
-    def agentChecks(self, agent, device):
+    def agent_checks(self, agent, device):
         "Perform agent checks"
 
         try:
@@ -359,11 +322,11 @@ class DattoCheck():
         BACKUP_FAILURE = False
 
         # check if the most recent backup was more than LAST_BACKUP_THRESHOLD
-        lastBackupTime = datetime.datetime.fromtimestamp(agent.last_snapshot, datetime.timezone.utc)
+        last_backup_time = datetime.datetime.fromtimestamp(agent.last_snapshot, datetime.timezone.utc)
         now = datetime.datetime.now(datetime.timezone.utc)
-        timeDiff = now - lastBackupTime
+        time_diff = now - last_backup_time
 
-        if timeDiff.total_seconds() > config.LAST_BACKUP_THRESHOLD:
+        if time_diff.total_seconds() > config.LAST_BACKUP_THRESHOLD:
             try:
                 if agent.backups[0]['backup']['status'] != 'success':  # only error if the last scheduled backup failed
                     backup_error = agent.backups[0]['backup']['errorMessage']
@@ -371,111 +334,124 @@ class DattoCheck():
                         backup_error = "No error message available"
                     # if local backups exist, get last successful backup time
                     if agent.last_snapshot:
-                        lastSnapshotTime = str(self.display_time(timeDiff.total_seconds())) + ' ago'
+                        last_snapshot_time = str(display_time(time_diff.total_seconds())) + ' ago'
                     else:
-                        lastSnapshotTime = "(no local snapshots exist)"
-                    error_text = '-- "{}": Last scheduled backup failed; last backup was: {}. Error: "{}"'.format(\
-                        agent.name, lastSnapshotTime, backup_error)
+                        last_snapshot_time = "(no local snapshots exist)"
+                    error_text = '-- "{}": Last scheduled backup failed; last \
+                    backup was: {}. Error: "{}"'.format(agent.name,
+                                                        last_snapshot_time,
+                                                        backup_error)
 
                     BACKUP_FAILURE = True
-                    errorData = ['backup_error', device['name'], agent.name,'{}'.format(lastSnapshotTime), backup_error]
+                    errorData = ['backup_error',
+                                 device['name'],
+                                 agent.name, '{}'.format(last_snapshot_time), backup_error]
 
-                    if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD and agent.last_snapshot:
-                        self.appendError(errorData, color='red')
+                    if time_diff.total_seconds() > config.ACTIONABLE_THRESHOLD and agent.last_snapshot:
+                        self.append_error(errorData, color='red')
                     else:
-                        self.appendError(errorData)
+                        self.append_error(errorData)
                     self.logger.debug(error_text)
 
             except IndexError:
                 error_text = 'Agent does not seem to have any backups'
-                self.logger.debug(f"Agent {agent.name} does not seem to have any backups.")
-                self.appendError(['informational', device['name'], agent.name, error_text])
+                self.logger.debug("Agent %s does not seem to have any backups.", agent.name)
+                self.append_error(['informational', device['name'], agent.name, error_text])
 
         # Check if latest off-site point exceeds LAST_OFFSITE_THRESHOLD
         if not agent.latest_offsite:
             error_text = 'No off-site backup points exist'
-            self.appendError(['informational', device['name'], agent.name, error_text])
-            self.logger.debug(f"{agent.name} - {error_text}")
+            self.append_error(['informational', device['name'], agent.name, error_text])
+            self.logger.debug("%s - %s", agent.name, error_text)
         elif not BACKUP_FAILURE:
-            lastOffsite = datetime.datetime.fromtimestamp(agent.latest_offsite, datetime.timezone.utc)
-            timeDiff = now - lastOffsite
-            if timeDiff.total_seconds() > config.LAST_OFFSITE_THRESHOLD:
-                error_text = 'Last off-site: {} ago'.format(self.display_time(timeDiff.total_seconds()))
-                if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD:
-                    self.appendError(['offsite_error', device['name'], agent.name, error_text], 'red')
+            last_offsite = datetime.datetime.fromtimestamp(agent.latest_offsite, datetime.timezone.utc)
+            time_diff = now - last_offsite
+            if time_diff.total_seconds() > config.LAST_OFFSITE_THRESHOLD:
+                error_text = 'Last off-site: {} ago'.format(display_time(time_diff.total_seconds()))
+                if time_diff.total_seconds() > config.ACTIONABLE_THRESHOLD:
+                    self.append_error(['offsite_error',
+                                      device['name'],
+                                      agent.name,
+                                      error_text],
+                                     'red')
                 else:
-                    self.appendError(['offsite_error', device['name'], agent.name, error_text])
-                self.logger.debug(f"{agent.name} - {error_text}")
+                    self.append_error(['offsite_error', device['name'], agent.name, error_text])
+                self.logger.debug("%s - %s", agent.name, error_text)
 
         # check if time of latest screenshot exceeds LAST_SCREENSHOT_THRESHOLD
         if agent.type == 'agent' and agent.last_screenshot_attempt and not BACKUP_FAILURE:
-            last_screenshot = datetime.datetime.fromtimestamp(agent.last_screenshot_attempt, datetime.timezone.utc)
-            timeDiff = now - last_screenshot
-            if timeDiff.total_seconds() > config.LAST_SCREENSHOT_THRESHOLD:
-                error_text = 'Last screenshot was {} ago.'.format(self.display_time(timeDiff.total_seconds()))
-                if timeDiff.total_seconds() > config.ACTIONABLE_THRESHOLD:
-                    self.appendError(['screenshot_error', device['name'], agent.name, error_text, '', 'red'])
+            last_screenshot = datetime.datetime.fromtimestamp(agent.last_screenshot_attempt,
+                                                              datetime.timezone.utc)
+            time_diff = now - last_screenshot
+            if time_diff.total_seconds() > config.LAST_SCREENSHOT_THRESHOLD:
+                error_text = 'Last screenshot was {} ago.'.format(display_time(time_diff.total_seconds()))
+                if time_diff.total_seconds() > config.ACTIONABLE_THRESHOLD:
+                    self.append_error(['screenshot_error', device['name'],
+                                      agent.name, error_text, '', 'red'])
                 else:
-                    self.appendError(['screenshot_error', device['name'], agent.name, error_text, ''])
-                self.logger.debug(f"{agent.name} - {error_text}")
+                    self.append_error(['screenshot_error', device['name'],
+                                      agent.name, error_text, ''])
+                self.logger.debug("%s - %s", agent.name, error_text)
 
         # check status of last screenshot attempt
-        if not BACKUP_FAILURE and agent.type == 'agent' and agent.last_screenshot_attempt_status == False:
+        if not BACKUP_FAILURE and agent.type == 'agent' and not agent.last_screenshot_attempt_status:
             error_text = 'Last screenshot attempt failed!'
-            screenshotURI,screenshotErrorMessage = self.datto.getAgentScreenshot(device['name'], agent.name)
-            if screenshotURI == -1:
-                screenshotURI = ""
-                screenshotErrorMessage = ""
-            self.appendError(['screenshot_error', device['name'], agent.name, screenshotURI, screenshotErrorMessage])
-            self.logger.debug(f"{agent.name} - {error_text}")
+            screenshot_uri, screenshot_error_message = self.datto.get_agent_screenshot(device['name'],
+                                                                                       agent.name)
+            if screenshot_uri == -1:
+                screenshot_uri = ""
+                screenshot_error_message = ""
+            self.append_error(['screenshot_error', device['name'], agent.name,
+                              screenshot_uri, screenshot_error_message])
+            self.logger.debug("%s - %s", agent.name, error_text)
 
         # check local verification and report any errors
         try:
             if not BACKUP_FAILURE and agent.type == 'agent' and agent.backups and agent.backups[0]['localVerification']['errors']:
                 for error in agent.backups[0]['localVerification']['errors']:
                     error_text = 'Local Verification Failure!\n{}\n{}'.format(error['errorType'],error['errorMessage'])
-                    self.appendError(['verification_error', device['name'], agent.name, error['errorType'], error['errorMessage']])
-                    self.logger.debug(f"{agent.name} - {error_text}")
+                    self.append_error(['verification_error', device['name'], agent.name, error['errorType'], error['errorMessage']])
+                    self.logger.debug("%s - %s", agent.name, error_text)
         except Exception as e:
             self.logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent.name, str(e)))
-        return
 
-    def buildHtmlEmail(self, results_data):
+
+    def build_html_email(self, results_data):
         """Compile all results into HTML tables based on error level."""
 
         self.logger.info('Building HTML email message body.')
         # create initial html structure
-        MSG_BODY = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}th{text-align:center;}</style></head><body>'
+        msg_body = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}th{text-align:center;}</style></head><body>'
 
         if results_data['critical']:
-            MSG_BODY += '<h1>CRITICAL ERRORS</h1><table>'
-            MSG_BODY += '<tr><th>Appliance</th><th>Error Type</th><th>Error Details</th></tr>'
+            msg_body += '<h1>CRITICAL ERRORS</h1><table>'
+            msg_body += '<tr><th>Appliance</th><th>Error Type</th><th>Error Details</th></tr>'
             for error in results_data['critical']:
-                MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
-            MSG_BODY += '</table>'
+                msg_body += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+            msg_body += '</table>'
 
         if results_data['backup_error']:
-            MSG_BODY += '<h1>Backup Errors</h1><table>\
+            msg_body += '<h1>Backup Errors</h1><table>\
             <tr><th>Appliance</th><th>Agent/Share</th><th>Last Backup</th><th>Error Details</th></tr>'
             for error in results_data['backup_error']:
                 if len(error) == 5:
-                    MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
+                    msg_body += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
                 else:
-                    MSG_BODY += '<tr style="background-color: {0};"><td>'.format(error[5]) + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
-            MSG_BODY += '</table>'
+                    msg_body += '<tr style="background-color: {0};"><td>'.format(error[5]) + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error[4] + '</td></tr>'
+            msg_body += '</table>'
 
         if results_data['offsite_error']:
-            MSG_BODY += '<h1>Off-Site Sync Issues</h1><table>\
+            msg_body += '<h1>Off-Site Sync Issues</h1><table>\
             <tr><th>Appliance</th><th>Agent/Share</th><th>Error Details</th></tr>'
             for error in results_data['offsite_error']:
                 if len(error) == 4:
-                    MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+                    msg_body += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
                 else:
-                    MSG_BODY += '<tr style="background-color: {0};"><td>'.format(error[4]) + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
-            MSG_BODY += '</table>'
+                    msg_body += '<tr style="background-color: {0};"><td>'.format(error[4]) + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+            msg_body += '</table>'
 
         if results_data['screenshot_error']:
-            MSG_BODY += '<h1>Screenshot Failures</h1><table>\
+            msg_body += '<h1>Screenshot Failures</h1><table>\
             <tr><th>Appliance</th><th>Agent</th><th>Screenshot</th></tr>'
             for error in results_data['screenshot_error']:
                 if not error[3]:
@@ -485,33 +461,33 @@ class DattoCheck():
                 else:
                     col_three = error[3]
                 if len(error) == 5:
-                    MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
+                    msg_body += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
                 else:
-                    MSG_BODY += '<tr style="background-color: {0};"><td>'.format(error[5]) + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
-            MSG_BODY += '</table>'
+                    msg_body += '<tr style="background-color: {0};"><td>'.format(error[5]) + error[1] + '</td><td>' + error[2] + '</td><td width="160">' + col_three + '</td></tr>'
+            msg_body += '</table>'
 
         if results_data['verification_error']:
-            MSG_BODY += '<h1>Local Verification Issues</h1><table>\
+            msg_body += '<h1>Local Verification Issues</h1><table>\
             <tr><th>Appliance</th><th>Agent</th><th>Error Type</th><th>Error Message</th></tr>'
             for error in results_data['verification_error']:
                 if error[4]:
                     error_message = error[4]
                 else:
                     error_message = '<none>'
-                MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error_message + '</td></tr>'
-            MSG_BODY += '</table>'
+                msg_body += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td><td>' + error_message + '</td></tr>'
+            msg_body += '</table>'
 
         if results_data['informational']:
-            MSG_BODY += '<h1>Informational</h1><table>\
+            msg_body += '<h1>Informational</h1><table>\
             <tr><th>Appliance</th><th>Agent/Share</th><th>Details</th></tr>'
             for error in results_data['informational']:
-                MSG_BODY += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
-            MSG_BODY += '</table>'
+                msg_body += '<tr><td>' + error[1] + '</td><td>' + error[2] + '</td><td>' + error[3] + '</td></tr>'
+            msg_body += '</table>'
 
-        MSG_BODY += '</body></html>'
-        return(MSG_BODY)
+        msg_body += '</body></html>'
+        return(msg_body)
 
-    def appendError(self, error_detail, color=None):
+    def append_error(self, error_detail, color=None):
         """Append an error to the results_data list.
 
             error_detail - List of error data.
@@ -520,7 +496,7 @@ class DattoCheck():
 
         if color: error_detail.append(color)
         self.results_data[error_detail[0]].append(error_detail)
-        return
+
 
     def run(self):
         "Run Datto Check functions."
@@ -531,7 +507,7 @@ class DattoCheck():
             self.deviceChecks(device)
 
         self.logger.info("API queries complete; closing Requests session.")
-        self.datto.sessionClose()
+        self.datto.session_close()
 
         self.logger.info("Device and agent checks complete.")
 
@@ -539,4 +515,40 @@ class DattoCheck():
             self.email_report()
 
         self.logger.info("Datto check script complete.")
-        return
+
+
+def display_time(seconds, granularity=2):
+    """
+    Converts an integer (number of seconds) into a readable time format with certain granularity.
+
+    From "Mr. B":
+    https://stackoverflow.com/questions/4048651/python-function-to-convert-seconds-into-minutes-hours-and-days/24542445#answer-24542445
+    """
+    intervals = (
+        ('weeks', 604800),  # 60 * 60 * 24 * 7
+        ('days', 86400),    # 60 * 60 * 24
+        ('hours', 3600),    # 60 * 60
+        ('minutes', 60),
+        ('seconds', 1),
+    )
+
+    seconds = int(seconds)
+    result = []
+
+    for name, count in intervals:
+        value = seconds // count
+        if value:
+            seconds -= value * count
+            if value == 1:
+                name = name.rstrip('s')
+                result.append("{} {}".format(value, name))
+    return ', '.join(result[:granularity])
+
+
+def rebuild_screenshot_url(url):
+    '''Rebuild the URL using the new images URL.'''
+    base_url = 'https://device.dattobackup.com/sirisReporting/images/latest'
+    url_parsed = urlparse(url)
+    image_name = url_parsed.query.split('/')[-1]
+    new_url = '/'.join([base_url, image_name])
+    return new_url
