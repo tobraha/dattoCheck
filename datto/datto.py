@@ -255,7 +255,7 @@ class DattoCheck():
         time_diff = now - device_checkin
 
         if time_diff.total_seconds() >= config.CHECKIN_LIMIT:
-            error_text = "Last checkin was {} ago.".format(display_time(timeDiff.total_seconds()))
+            error_text = "Last checkin was {} ago.".format(display_time(time_diff.total_seconds()))
             self.append_error(['critical', device['name'], 'Appliance Offline', error_text])
             self.logger.debug(f"{device['name']}: Appliance Offline")
             return  # do not proceed if the device is offline; go to next device
@@ -541,7 +541,7 @@ def display_time(seconds, granularity=2):
             seconds -= value * count
             if value == 1:
                 name = name.rstrip('s')
-                result.append("{} {}".format(value, name))
+            result.append("{} {}".format(value, name))
     return ', '.join(result[:granularity])
 
 
