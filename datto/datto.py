@@ -53,9 +53,9 @@ class Datto():
 
         logger.info('Retrieving Datto XML API data.')
         xml_request = requests.Session()
-        xml_request.headers.update({"Content-Type" : "application/xml"})
+        xml_request.headers.update({"Content-Type" : "text/xml"})
         url = config.XML_API_BASE_URI + '/' + xml_key
-        api_xml_data = xml_request.get(url).text
+        api_xml_data = xml_request.get(url).text.replace(u"\u000C", "")
         xml_request.close()
         try:
             xml_parsed = ET.fromstring(api_xml_data)
