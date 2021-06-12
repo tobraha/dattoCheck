@@ -11,6 +11,8 @@ from retry import retry
 import requests
 import config
 
+from config import DattoApiError
+
 # Internal Imports
 from .base import DattoAsset
 
@@ -52,9 +54,15 @@ class Datto():
         url = config.XML_API_BASE_URI + '/' + xml_key
         api_xml_data = xml_request.get(url).text
         xml_request.close()
-        return ET.fromstring(api_xml_data)
+        try:
+            xml_parsed = ET.fromstring(api_xml_data)
+            return xml_parsed
+        except ET.ParseError:
+            self.logger.fatal("Failure parsing XML from Datto API!")
+            sys.exit(-1)
 
-    @retry(config.DattoApiError, tries=3, delay=3)
+
+    @retry(DattoApiError, tries=3, delay=3)
     def get_devices(self):
         """
         Use the initial device API query to load all devices
@@ -80,7 +88,7 @@ class Datto():
         devices = sorted(devices, key=lambda i: i['name'].upper()) # let's sort this bad boy!
         return devices
 
-    @retry(config.DattoApiError, tries=3, delay=3)
+    @retry(DattoApiError, tries=3, delay=3)
     def get_asset_details(self, serial_number):
         """
         With a device serial number (argument), query the API with it
