@@ -3,8 +3,12 @@
 # Import
 import sys
 import argparse
-import datto
-from config import *
+import logging
+from datto import DattoCheck
+from config import InvalidEmailSettings, LOG_FILE
+
+from logging import StreamHandler, DEBUG, INFO, Formatter
+from logging.handlers import RotatingFileHandler
 
 def main():
     """Main entry.
@@ -62,7 +66,24 @@ def main():
             raise InvalidEmailSettings("You must have at least a \
             sender, recipient, and MX endpoint.")
 
-    datto_check = datto.DattoCheck(args)
+    # Add rotating log
+    logger = logging.getLogger("Datto Check")
+    logger.setLevel(DEBUG)
+    handler = RotatingFileHandler(LOG_FILE, maxBytes=30000, backupCount=3)
+    handler.setLevel(INFO)
+    formatter = Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    # If verbose is set, add stdout logging handler
+    if args.verbose:
+        handler = StreamHandler(sys.stdout)
+        handler.setLevel(DEBUG)
+        formatter = Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    datto_check = DattoCheck(args)
     datto_check.run()
     return 0
 
