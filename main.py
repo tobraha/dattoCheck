@@ -56,7 +56,10 @@ def main():
                         choices=['25', '465', '587'],
                         default='25')
     parser.add_argument('--starttls', help='Specify whether to use \
-    STARTTLS or not', action='store_true')
+        STARTTLS or not', action='store_true')
+    parser.add_argument('--unprotected-volumes', '-u', help='Include \
+        any unprotected volumes in the final report',
+        action='store_true')
 
     args = parser.parse_args()
 

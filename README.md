@@ -72,6 +72,8 @@ Add something like this to schedule the script:
 
 `0 8 * * 1-5 /usr/bin/git -C /opt/dattoCheck pull ; /usr/bin/python3 /opt/dattoCheck/main.py --send-email --email-to tech-distro-group@mydomain.com --email-from datto-check@mydomain.com --mx-endpoint mydomain-com.mail.protection.outlook.com --starttls 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f`
 
+The '-u' option to include the unprotected volumes can make the report lengthy; I usually add a second cron entry to add the '-u' option on only one day of the week, then exclude it for the rest.
+
 For multiple email recipeints ("To" or "CC"), use the `--email-to` or `--email-cc` args multiple times:
 
 `python3 main.py --send-email --email-to alice@example.com --email-to bob@example.com --email-cc reports@example.com --mx-endpoint example-com.mail.protection.outlook.com --starttls 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f`
@@ -103,6 +105,8 @@ optional arguments:
                         MX Endpoint of where to send the email
   --smtp-port {25,587}  TCP port to use when sending the email; default=25
   --starttls            Specify whether to use STARTTLS or not
+  --unprotected-volumes, -u
+                        Include any unprotected volumes in the final report
 
 Developed by Tommy Harris, Ryan Shoemaker on September 8, 2019
 ```
