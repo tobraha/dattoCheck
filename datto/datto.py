@@ -5,6 +5,7 @@ import sys
 
 # Import: Others
 from urllib.parse import urlparse
+from html import escape
 from xml.etree import ElementTree as ET
 from retry import retry
 import requests
@@ -343,11 +344,9 @@ class DattoCheck():
             error_text = 'Last screenshot attempt failed!'
             screenshot_uri, screenshot_error_message = self.datto.get_agent_screenshot(device['name'],
                                                                                        agent.name)
-            if screenshot_uri == -1:
-                screenshot_uri = ""
-                screenshot_error_message = ""
+            if screenshot_uri == -1: screenshot_uri,screenshot_error_message = "",""
             self.append_error(['screenshot_error', device['name'], agent.name,
-                              screenshot_uri, screenshot_error_message])
+                              screenshot_uri, escape(screenshot_error_message)])
             logger.debug("%s - %s", agent.name, error_text)
 
         # check local verification and report any errors
@@ -359,6 +358,13 @@ class DattoCheck():
                     logger.debug("%s - %s", agent.name, error_text)
         except Exception as e:
             logger.error('Device: "{}" Agent: "{}". {}'.format(device['name'], agent.name, str(e)))
+
+        # report any unprotected volumes if arg set to true
+        if self.args.unprotected_volumes:
+            if agent.unprotected_volumes:
+                error_text = 'Unprotected Volumes: {0}'.format(escape(','.join(agent.unprotected_volumes)))
+                self.append_error(['informational', device['name'], agent.name, error_text])
+                logger.debug("%s - %s", agent.name, error_text)
 
 
     def append_error(self, error_detail, color=None):
