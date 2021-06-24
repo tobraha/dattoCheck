@@ -58,7 +58,9 @@ pip install -r requirements.txt # might need to use pip3
 
 I recommend enabling the 'verbose' option if you're running this from the command line. If you're not sending an email, you'll just need to include the *three* API keys mentioned above:
 
-`python3 main.py -v 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f`
+```bash
+python3 main.py -v 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f
+```
 
 **Scheduling via cron**
 
@@ -70,13 +72,20 @@ Edit your crontab with:
 
 Add something like this to schedule the script:
 
-`0 8 * * 1-5 /usr/bin/git -C /opt/dattoCheck pull ; /usr/bin/python3 /opt/dattoCheck/main.py --send-email --email-to tech-distro-group@mydomain.com --email-from datto-check@mydomain.com --mx-endpoint mydomain-com.mail.protection.outlook.com --starttls 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f`
+```bash
+0 8 * * 1-5 /usr/bin/git -C /opt/dattoCheck pull ; /usr/bin/python3 /opt/dattoCheck/main.py --send-email --email-to tech-distro-group@mydomain.com --email-from datto-check@mydomain.com --mx-endpoint mydomain-com.mail.protection.outlook.com --starttls 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f
+
+# if you setup a virtualenv, use the explicit path to it instead of /usr/bin/python3
+/opt/dattoCheck/venv/bin/python
+```
 
 The '-u' option to include the unprotected volumes can make the report lengthy; I usually add a second cron entry to add the '-u' option on only one day of the week, then exclude it for the rest.
 
 For multiple email recipeints ("To" or "CC"), use the `--email-to` or `--email-cc` args multiple times:
 
-`python3 main.py --send-email --email-to alice@example.com --email-to bob@example.com --email-cc reports@example.com --mx-endpoint example-com.mail.protection.outlook.com --starttls 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f`
+```bash
+python3 main.py --send-email --email-to alice@example.com --email-to bob@example.com --email-cc reports@example.com --mx-endpoint example-com.mail.protection.outlook.com --starttls 123456a 3e47b75000b0924b6c9ba5759a7cf15d 437b930db84b8079c2dd804a71936b5f
+```
 
 ```
 usage: main.py [-h] [-v] [--send-email] --email-to EMAIL_TO [--email-cc EMAIL_CC] --email-from
