@@ -2,6 +2,9 @@ import logging
 import datetime
 import traceback
 import sys
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # Import: Others
 from urllib.parse import urlparse
@@ -18,6 +21,7 @@ from .base import DattoAsset
 
 logger = logging.getLogger("Datto Check")
 
+
 class Datto():
     """
     Handles the session and communication with the Datto API.
@@ -30,7 +34,7 @@ class Datto():
         logger.info('Creating new Python requests session with the API endpoint.')
         self.session = requests.Session()
         self.session.auth = (self.args.AUTH_USER, self.args.AUTH_PASS)
-        self.session.headers.update({"Content-Type" : "application/json"})
+        self.session.headers.update({"Content-Type": "application/json"})
 
         self.test_api_connection()
         self.xml_api_root = self.get_xml_api_data(self.args.XML_API_KEY)
@@ -47,14 +51,13 @@ class Datto():
             logger.fatal("Error querying API for devices!")
             sys.exit(-1)
 
-
     def get_xml_api_data(self, xml_key):
         """Retrieve and parse data from XML API
         Returns xml ElementTree of Datto XML content"""
 
         logger.info('Retrieving Datto XML API data.')
         xml_request = requests.Session()
-        xml_request.headers.update({"Content-Type" : "text/xml"})
+        xml_request.headers.update({"Content-Type": "text/xml"})
         url = config.XML_API_BASE_URI + '/' + xml_key
         api_xml_data = xml_request.get(url).text.replace(u"\u000C", "")
         xml_request.close()
@@ -70,7 +73,6 @@ class Datto():
             email_report(self.args, body=email_body)
             sys.exit(-1)
 
-
     @retry(DattoApiError, tries=3, delay=3)
     def get_devices(self):
         """
@@ -80,9 +82,11 @@ class Datto():
         Returns a list of all 'items' from the devices API.
         """
 
+        # load the first (up to) 100 devices into device list
+        # get total number of pages
         devices = []
-        devices.extend(self.assets['items']) # load the first (up to) 100 devices into device list
-        total_pages = self.assets['pagination']['totalPages'] # see how many pages there are
+        devices.extend(self.assets['items'])
+        total_pages = self.assets['pagination']['totalPages']
 
         # new request for each page; extend additional 'items' to devices list
         if total_pages > 1:
@@ -94,7 +98,8 @@ class Datto():
                     second page of devices")
                 devices.extend(result['items'])
 
-        devices = sorted(devices, key=lambda i: i['name'].upper()) # let's sort this bad boy!
+        # let's sort this thing!
+        devices = sorted(devices, key=lambda i: i['name'].upper())
         return devices
 
     @retry(DattoApiError, tries=3, delay=3)
@@ -114,7 +119,6 @@ class Datto():
             asset details for "{serial_number}"')
 
         return asset_data
-
 
     def get_agent_screenshot(self, device_name, agent_name):
         """Search the XML API output for a screenshot URL for the device & agent.
@@ -156,6 +160,7 @@ class Datto():
 
         return self.session.close()
 
+
 class DattoCheck():
     "Handles the main functions of the script."
 
@@ -168,18 +173,17 @@ class DattoCheck():
         self.args = args
 
         # initialize results_data, used for generating html report
-        self.results_data = {'critical' : [],
-                             'backup_error' : [],
-                             'offsite_error' : [],
-                             'screenshot_error' : [],
-                             'verification_error' : [],
-                             'informational' : []
-                            }
+        self.results_data = {'critical': [],
+                             'backup_error': [],
+                             'offsite_error': [],
+                             'screenshot_error': [],
+                             'verification_error': [],
+                             'informational': []
+                             }
 
         logger.info("Starting Datto Check Script")
         self.datto = Datto(args)
         self.devices = self.datto.get_devices()
-
 
     def check_active_tickets(self, device):
         "Check whether the device has any active tickets open."
@@ -189,7 +193,6 @@ class DattoCheck():
                 device['activeTickets'], 'ticket' if device['activeTickets'] < 2 else 'tickets' )
             self.append_error(['informational', device['name'], 'N/A', error_text])
             logger.debug("%s:  %s", device['name'], error_text)
-
 
     def checkLastCheckin(self, device):
         "Checks the last time the device checked in to the Datto Portal."
@@ -205,7 +208,6 @@ class DattoCheck():
             self.append_error(['critical', device['name'], 'Appliance Offline', error_text])
             logger.debug(f"{device['name']}: Appliance Offline")
             return  # do not proceed if the device is offline; go to next device
-
 
     def check_disk_usage(self, device):
         "Check disk usage reported by the API and calculate percentages"
@@ -225,19 +227,18 @@ class DattoCheck():
             self.append_error(['critical', device['name'], 'Low Disk Space', error_text])
             logger.debug("%s:  %s", device['name'], error_text)
 
-
     def deviceChecks(self,device):
         """Performs device checks on an "asset" object retrieved from the API.
 
         Calls self.agentChecks() for the device passed.
         """
 
-        logger.debug(f" --- Starting device and agent checks for '{device['name']}' ---")
+        logger.debug("Starting device and agent checks for '%s'", device['name'])
 
         if device['hidden']:
-            logger.debug(f"Skipping hidden asset: {device['name']}.")
+            logger.debug("Skipping hidden asset: %s", device['name'])
             return
-        if device['name'] == 'backupDevice': 
+        if device['name'] == 'backupDevice':
             return
 
         self.check_active_tickets(device)
@@ -245,8 +246,8 @@ class DattoCheck():
         self.check_disk_usage(device)
 
         # Run agent checks
-        assetDetails = self.datto.get_asset_details(device['serialNumber'])
-        for agent in assetDetails:
+        asset_details = self.datto.get_asset_details(device['serialNumber'])
+        for agent in asset_details:
             agent = DattoAsset(agent)
             self.agent_checks(agent, device)
         return
@@ -256,10 +257,10 @@ class DattoCheck():
 
         try:
             if agent.is_archived:
-                logger.debug(f"Agent {agent.name} is archived.")
+                logger.debug("Agent %s is archived.", agent.name)
                 return
             if agent.is_paused:
-                logger.debug(f"Agent {agent.name} is paused.")
+                logger.debug("Agent %s is paused.", agent.name)
                 return
         except Exception as e:
             logger.critical('"{}" (device: "{}")'.format(str(e), device['name']))
@@ -289,14 +290,17 @@ class DattoCheck():
                                                         backup_error)
 
                     BACKUP_FAILURE = True
-                    errorData = ['backup_error',
-                                 device['name'],
-                                 agent.name, '{}'.format(last_snapshot_time), backup_error]
+
+                    error_data = ['backup_error',
+                                  device['name'],
+                                  agent.name,
+                                  '{}'.format(last_snapshot_time),
+                                  backup_error]
 
                     if time_diff.total_seconds() > config.ACTIONABLE_THRESHOLD and agent.last_snapshot:
-                        self.append_error(errorData, color='red')
+                        self.append_error(error_data, color='red')
                     else:
-                        self.append_error(errorData)
+                        self.append_error(error_data)
                     logger.debug(error_text)
 
             except IndexError:
@@ -366,7 +370,6 @@ class DattoCheck():
                 self.append_error(['informational', device['name'], agent.name, error_text])
                 logger.debug("%s - %s", agent.name, error_text)
 
-
     def append_error(self, error_detail, color=None):
         """Append an error to the results_data list.
 
@@ -374,9 +377,10 @@ class DattoCheck():
                 First and second items are error level, and device name
         """
 
-        if color: error_detail.append(color)
-        self.results_data[error_detail[0]].append(error_detail)
+        if color:
+            error_detail.append(color)
 
+        self.results_data[error_detail[0]].append(error_detail)
 
     def run(self):
         "Run Datto Check functions."
@@ -448,10 +452,6 @@ def email_report(args, body):
     https://docs.microsoft.com/en-us/exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-office-3
     """
 
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
     logger.info("Preparing and sending email report to: {}".format(args.email_to))
     d = datetime.datetime.today()
 
@@ -459,7 +459,7 @@ def email_report(args, body):
     msg = MIMEMultipart()
     msg['Subject'] = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
     msg['From'] = args.email_from
-    msg['To'] = ', '.join( args.email_to)
+    msg['To'] = ', '.join(args.email_to)
     if args.email_cc:
         msg['Cc'] = ', '.join( args.email_cc)
     msg.attach(MIMEText(body, 'html'))
