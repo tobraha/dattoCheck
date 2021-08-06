@@ -47,6 +47,7 @@ class Datto():
 
         logger.info("Retrieving initial asset list.")
         self.assets = self.session.get(config.API_BASE_URI + '?_page=1').json()
+        logger.info('API returned a total of %s devices', self.assets['pagination']['count'])
         if 'code' in self.assets:
             logger.fatal("Error querying API for devices!")
             sys.exit(-1)
@@ -95,7 +96,7 @@ class Datto():
                 result = self.session.get(config.API_BASE_URI + '?_page=' + str(page)).json()
                 if 'code' in result:
                     raise config.DattoApiError("Error querying Datto API for \
-                    second page of devices")
+                    additional devices")
                 devices.extend(result['items'])
 
         # let's sort this thing!
