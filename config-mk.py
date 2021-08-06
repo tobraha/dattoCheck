@@ -1,9 +1,24 @@
 import os
 from pathlib import Path
 
-# Global Variables
+# API URIs
 API_BASE_URI = 'https://api.datto.com/v1/bcdr/device'
 XML_API_BASE_URI = 'https://portal.dattobackup.com/external/api/xml/status'
+
+# API authentication
+AUTH_USER = ''
+AUTH_PASS = ''
+AUTH_XML  = ''
+
+# Email configs
+EMAIL_FROM = ''
+EMAIL_TO   = []
+EMAIL_CC   = []
+EMAIL_PW   = ''
+EMAIL_MX   = ''
+EMAIL_PORT = 25
+EMAIL_SSL  = True
+
 
 # Error/Alert threshold settings
 CHECKIN_LIMIT = 60 * 20                  # threshold for device offline time
@@ -24,11 +39,6 @@ LOG_FILE = (LOG_DIR / 'datto_check.log')
 class Error(Exception):
 	"""Base class for errors/exceptions"""
 	pass
-
-class DattoApiError(Error):
-	"""Raised on errors encountered from the Datto API."""
-	pass
-
 class InvalidEmailSettings(Error):
 	"""Error raised when email settings are invalid"""
 	pass

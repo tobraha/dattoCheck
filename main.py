@@ -5,7 +5,7 @@ import sys
 import argparse
 import logging
 from datto import DattoCheck
-from config import InvalidEmailSettings, LOG_FILE
+import config
 
 from logging import StreamHandler, DEBUG, INFO, Formatter
 from logging.handlers import RotatingFileHandler
@@ -27,36 +27,10 @@ def main():
                                      epilog='Developed by {} on \
                                      {}'.format(", ".join(__authors__), __date__))
 
-    # Add positional arguments
-    parser.add_argument('AUTH_USER', help='Datto API User (REST API Public Key)')
-    parser.add_argument('AUTH_PASS', help='Datto API Password (REST API Secret Key')
-    parser.add_argument('XML_API_KEY', help='Datto XML API Key')
-
     # "Optional" arguments
     parser.add_argument('-v', '--verbose',
                         help='Print verbose output to stdout',
                         action='store_true')
-    parser.add_argument('--send-email',
-                        help='Set this flag to send an email.  \
-                        Below parameters required if set',
-                        action='store_true')
-    parser.add_argument('--email-to',
-                        help='Email address to send message to. \
-                        Use more than once for multiple recipients.',
-                        action='append')
-    parser.add_argument('--email-cc',
-                        help='(OPTIONAL) Email address to CC. \
-                        Use more than once for multiple recipients.',
-                        action='append')
-    parser.add_argument('--email-from', help='Email address to send message from')
-    parser.add_argument('--email-pw', help='Password to use for authentication')
-    parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email')
-    parser.add_argument('--smtp-port',
-                        help='TCP port to use when sending the email; default=25',
-                        choices=['25', '465', '587'],
-                        default='25')
-    parser.add_argument('--starttls', help='Specify whether to use \
-        STARTTLS or not', action='store_true')
     parser.add_argument('--unprotected-volumes', '-u', help='Include \
         any unprotected volumes in the final report',
         action='store_true')
