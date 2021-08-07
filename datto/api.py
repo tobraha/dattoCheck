@@ -1,12 +1,15 @@
-# Datto API
-#
-# This module contains the Datto 'Api' object, which
-# handles communication with the Datto API.
+"""Datto API
+
+This module contains the Datto 'Api' object, which
+handles communication with the Datto API.
+"""
 
 # Imports: Standard
 import logging
 import requests
 import sys
+import traceback
+from urllib.parse import urlparse
 from retry import retry
 from xml.etree import ElementTree as ET
 
@@ -27,18 +30,15 @@ class Api():
     Handles the communication with the Datto API.
     """
 
-    @retry(config.DattoApiError, tries=3, delay=3)
-    def test_api_connection(self):
-        """Make a connection to the API Base URL to test connectivity and credentials.
-        Store the initial device query for later use.
-        """
+    def __init__(self):
+        '''Constructor - initialize Python Requests Session and get XML API data'''
 
-        logger.info("Retrieving initial asset list.")
-        self.assets = self.session.get(config.API_BASE_URI + '?_page=1').json()
-        logger.info('API returned a total of %s devices', self.assets['pagination']['count'])
-        if 'code' in self.assets:
-            logger.fatal("Error querying API for devices!")
-            sys.exit(-1)
+        logger.info('Creating new Python requests session with the API endpoint.')
+        self.session = requests.Session()
+        self.session.auth = (config.AUTH_USER, config.AUTH_PASS)
+        self.session.headers.update({"Content-Type": "application/json"})
+
+        self.xml_api_root = self.get_xml_api_data(config.AUTH_XML)
 
     def get_xml_api_data(self, xml_key):
         """Retrieve and parse data from XML API
@@ -59,33 +59,34 @@ class Api():
             email_body = "<h1>A fatal error occurred:</h1>"
             email_body += "<h2>Failed to parse XML from Datto API</h2>"
             email_body += '<h3>{0}</h3><br><pre>{1}</pre>'.format(str(exception), trace)
-            email_report(self.args, body=email_body)
+            # TODO: send an email!
             sys.exit(-1)
 
     @retry(DattoApiError, tries=3, delay=3)
     def get_devices(self):
         """
-        Use the initial device API query to load all devices
-         -Check pagination details and iterate through any additional pages
-          to return a list of all devices
-        Returns a list of all 'items' from the devices API.
+        Query API assets target to return all Datto Assets
         """
 
-        # load the first (up to) 100 devices into device list
-        # get total number of pages
         devices = []
-        devices.extend(self.assets['items'])
-        total_pages = self.assets['pagination']['totalPages']
+        assets = self.session.get(config.API_BASE_URI + '?_page=1').json()
+        if 'code' in assets:
+            logger.fatal('Cannot retrieve devices from API endpoint')
+            sys.exit(-1)
+        devices.extend(assets['items'])
+        total_pages = assets['pagination']['totalPages']
+        device_count = assets['pagination']['count']
+        logger.debug('API returned %s devices', device_count)
 
         # new request for each page; extend additional 'items' to devices list
         if total_pages > 1:
             for page in range(2, total_pages+1):
-                logger.info("Querying API for additional devices.")
-                result = self.session.get(config.API_BASE_URI + '?_page=' + str(page)).json()
-                if 'code' in result:
-                    raise config.DattoApiError("Error querying Datto API for \
-                    additional devices")
-                devices.extend(result['items'])
+                logger.debug("Querying API for additional devices.")
+                assets = self.session.get(config.API_BASE_URI + '?_page=' + str(page)).json()
+                if 'code' in assets:
+                    logger.fatal('Error querying Datto API for additional devices')
+                    sys.exit(-1)
+                devices.extend(assets['items'])
 
         # let's sort this thing!
         devices = sorted(devices, key=lambda i: i['name'].upper())
@@ -104,7 +105,7 @@ class Api():
         asset_data = self.session.get(config.API_BASE_URI + '/' + serial_number + '/asset').json()
 
         if 'code' in asset_data:
-            raise config.DattoApiError(f'Error encountered retrieving \
+            raise DattoApiError(f'Error encountered retrieving \
             asset details for "{serial_number}"')
 
         return asset_data
@@ -135,7 +136,7 @@ class Api():
 
                         #check to see if the old API is being used; correct if so
                         if 'partners.dattobackup.com' in screenshot_uri:
-                            screenshot_uri = rebuild_screenshot_url(screenshot_uri)
+                            screenshot_uri = self.rebuild_screenshot_url(screenshot_uri)
 
                         if backup_volume.find('ScreenshotError').text:
                             screenshot_error_message = backup_volume.find('ScreenshotError').text
@@ -143,6 +144,14 @@ class Api():
                             screenshot_error_message = "[error message not available]"
                         return screenshot_uri, screenshot_error_message
         return(-1, -1)
+
+    def rebuild_screenshot_url(self, url):
+        '''Rebuild the URL using the new images URL'''
+        base_url = 'https://device.dattobackup.com/sirisReporting/images/latest'
+        url_parsed = urlparse(url)
+        image_name = url_parsed.query.split('/')[-1]
+        new_url = '/'.join([base_url, image_name])
+        return new_url
 
     def session_close(self):
         """Close the "requests" session"""

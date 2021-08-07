@@ -1,3 +1,7 @@
+# Configurations
+#
+# all runtime settings and configurations are defined in this file
+
 import os
 from pathlib import Path
 
@@ -34,11 +38,3 @@ if os.access('/var/log', os.W_OK):
 else:
 	LOG_DIR = Path(os.getcwd())
 LOG_FILE = (LOG_DIR / 'datto_check.log')
-
-# Define errors
-class Error(Exception):
-	"""Base class for errors/exceptions"""
-	pass
-class InvalidEmailSettings(Error):
-	"""Error raised when email settings are invalid"""
-	pass
