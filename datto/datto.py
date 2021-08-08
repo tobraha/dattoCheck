@@ -4,6 +4,7 @@
 
 # Import: standard
 import logging
+import smtplib
 
 # Import: local
 from datto.api import Api

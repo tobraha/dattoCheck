@@ -1,7 +1,9 @@
 import logging
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.multipart import MIMEText
+import config
+from datetime import datetime
+# from email.mime.multipart import MIMEMultipart
+# from email.mime.multipart import MIMEText
 
 logger = logging.getLogger("Datto Check")
 
@@ -20,7 +22,7 @@ def email_report(args, body):
     """
 
     logger.info("Preparing and sending email report to: {}".format(args.email_to))
-    d = datetime.datetime.today()
+    d = datetime.today()
 
     # Email heads
     msg = MIMEMultipart()
