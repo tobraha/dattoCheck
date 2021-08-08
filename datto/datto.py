@@ -15,20 +15,17 @@ logger = logging.getLogger("Datto Check")
 class DattoCheck():
     "Handles the main functions of the script."
 
-    def __init__(self, args):
+    def __init__(self, include_unprotected):
         """Constructor"""
 
-        super()
         self.api = Api()
         self.results = Results()
+        self.include_unprotected = include_unprotected
 
     def run(self):
-        """Performs device checks on an "asset" object retrieved from the API.
+        """Run device and agent checks"""
 
-        Calls self.agentChecks() for the device passed.
-        """
-
-        # main loop
+        # Main loop
         devices = self.api.get_devices()
         for device in devices:
             
@@ -39,13 +36,18 @@ class DattoCheck():
             # Device checks
             if device.is_inactive():
                 logger.info('    Device is archived or paused')
+                continue
             device.run_device_checks()
             if device.is_offline: continue
 
             # Agent checks
             asset_details = self.api.get_asset_details(device.serial_number)
             for agent in asset_details:
-                agent = Agent(agent)
+                agent = Agent(self.api,
+                              agent,
+                              device,
+                              self.results,
+                              self.include_unprotected)
                 agent.run_agent_checks()
 
 class Results():

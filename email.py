@@ -1,3 +1,10 @@
+import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.multipart import MIMEText
+
+logger = logging.getLogger("Datto Check")
+
 def email_report(args, body):
     """Email error report to listed recipients.
 

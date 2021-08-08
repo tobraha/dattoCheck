@@ -4,7 +4,7 @@
 import sys
 from argparse import ArgumentParser
 import logging
-import datto
+from datto import DattoCheck
 import config
 
 from logging import StreamHandler, DEBUG, INFO, Formatter
@@ -51,7 +51,7 @@ def main():
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    datto_check = datto.DattoCheck(args)
+    datto_check = DattoCheck(args.unprotected_volumes)
     datto_check.run()
     return 0
 
