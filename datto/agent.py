@@ -141,11 +141,11 @@ class Agent(Base):
 
         if not self.backup_failure and self.type == 'agent' and not self.last_screenshot_attempt_status:
             error_text = 'Last screenshot attempt failed!'
-            screenshot_uri, screenshot_error_message = self.api.get_agent_screenshot(self.device.name,
-                                                                                       self.name)
-            if screenshot_uri == -1: screenshot_uri,screenshot_error_message = "",""
+            screenshot_uri, screenshot_error = self.api.get_agent_screenshot(self.device.name,
+                                                                             self.name)
+            if screenshot_uri == -1: screenshot_uri,screenshot_error = "",""
             self.results.append_error(['screenshot_error', self.device.name, self.name,
-                              screenshot_uri, escape(screenshot_error_message)])
+                              screenshot_uri, escape(screenshot_error)])
             logger.debug("%s - %s", self.name, error_text)
 
     def check_local_verification(self):
@@ -166,12 +166,13 @@ class Agent(Base):
 
     def run_agent_checks(self):
         "Perform agent checks"
+
+        if self.has_local_backups:
+            self.check_last_backup_time()
+            self.check_last_offsite_time()
+            self.check_last_screenshot_time()
+            self.check_last_screenshot_status()
+            self.check_local_verification()
         
-        self.check_last_backup_time()
-        self.check_last_offsite_time()
-        self.check_last_screenshot_time()
-        self.check_last_screenshot_status()
-        self.check_local_verification()
-        
-        if self.include_unprotected: 
-            self.check_unprotected_volumes()
+            if self.include_unprotected:
+                self.check_unprotected_volumes()

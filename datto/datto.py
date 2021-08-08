@@ -5,8 +5,11 @@
 # Import: standard
 import logging
 import smtplib
+from datetime import datetime
 
 # Import: local
+import config
+from mail import Email
 from datto.api import Api
 from datto.device import Device
 from datto.agent import Agent
@@ -51,18 +54,47 @@ class DattoCheck():
                               self.include_unprotected)
                 agent.run_agent_checks()
 
+        # Main loop done
+        if config.EMAIL_TO:
+            mailer = Email()
+            d = datetime.today()
+            subject = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
+
 class Results():
 
     def __init__(self):
         "Constructor"
         # initialize results_data, used for generating html report
-        self.results = {'critical': [],
-                             'backup_error': [],
-                             'offsite_error': [],
-                             'screenshot_error': [],
-                             'verification_error': [],
-                             'informational': []
-                             }
+        self.results = {'critical': {
+                            'name' : "CRITICAL ERRORS",
+                            'columns' : ['Appliance', 'Error Type', 'Error Details'],
+                            'errors' : []
+                        },
+                        'backup_error': {
+                            'name' : "Backup Errors",
+                            'columns' : ['Appliance', 'Agent/Share', 'Last Backup', 'Error Details'],
+                            'errors' : []
+                        },
+                        'offsite_error': {
+                            'name' : 'Off-site Sync Issues',
+                            'columns' : ['Appliacne', 'Agent/Share', 'Error Details'],
+                            'errors' : []
+                        },
+                        'screenshot_error': {
+                            'name' : 'Screenshot Failures',
+                            'columns' : ['Appliance', 'Agent', 'Screenshot/Details'],
+                            'errors' : []
+                        },
+                        'verification_error': {
+                            'name' : 'Local Verification Issues',
+                            'columns' : ['Appliance', 'Agent', 'Error', 'Details']
+                        },
+                        'informational': {
+                            'name' : 'Informational',
+                            'columns' : ['Appliance', 'Agent/Share', 'Details'],
+                            'errors' : []
+                        }
+                        }
 
     def append_error(self, error_detail, color=None):
         """Append an error to the results_data list.
@@ -74,4 +106,4 @@ class Results():
         if color:
             error_detail.append(color)
 
-        self.results[error_detail[0]].append(error_detail)
+        self.results[error_detail[0]]['errors'].append(error_detail)

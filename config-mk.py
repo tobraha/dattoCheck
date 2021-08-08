@@ -15,13 +15,14 @@ AUTH_PASS = ''
 AUTH_XML  = ''
 
 # Email configs
-EMAIL_FROM = ''
-EMAIL_TO   = []
-EMAIL_CC   = []
-EMAIL_PW   = ''
-EMAIL_MX   = ''
-EMAIL_PORT = 25
-EMAIL_SSL  = True
+EMAIL_FROM  = ''
+EMAIL_TO    = []
+EMAIL_CC    = []
+EMAIL_LOGIN = EMAIL_FROM
+EMAIL_PW    = ''
+EMAIL_MX    = ''
+EMAIL_PORT  = 25
+EMAIL_SSL   = True
 
 
 # Error/Alert threshold settings

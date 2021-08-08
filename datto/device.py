@@ -5,7 +5,7 @@
 
 # Import: standard
 import logging
-import datetime
+from datetime import datetime, timezone
 from datto.base import Base
 
 # Import: local
@@ -49,13 +49,13 @@ class Device(Base):
         "Checks the last time the device checked in to the Datto Portal."
 
         time_string = self.last_seen_date[:22] + self.last_seen_date[23:] # remove the colon from time zone
-        device_checkin = datetime.datetime.strptime(time_string,
-                                                    "%Y-%m-%dT%H:%M:%S%z")
-        now = datetime.datetime.now(datetime.timezone.utc) # make 'now' timezone aware
-        time_diff = now - device_checkin
+        device_checkin = datetime.strptime(time_string,
+                                           "%Y-%m-%dT%H:%M:%S%z")
+        now = datetime.now(timezone.utc) # make 'now' timezone aware
+        time_diff = (now - device_checkin).total_seconds()
 
-        if time_diff.total_seconds() >= config.CHECKIN_LIMIT:
-            error_text = "Last checkin was {} ago.".format(self.display_time(time_diff.total_seconds()))
+        if time_diff >= config.CHECKIN_LIMIT:
+            error_text = "Last checkin was {} ago.".format(self.display_time(time_diff))
             self.results.append_error(['critical', self.name, 'Appliance Offline', error_text])
             logger.debug('    Appliance Offline')
             self.is_offline = True
