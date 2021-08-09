@@ -10,6 +10,7 @@ import requests
 import sys
 import traceback
 from urllib.parse import urlparse
+from html import escape
 from retry import retry
 from xml.etree import ElementTree as ET
 
@@ -69,6 +70,7 @@ class Api():
         """
 
         devices = []
+        logger.info('Gathering devices info from API')
         assets = self.session.get(config.API_BASE_URI + '?_page=1').json()
         if 'code' in assets:
             logger.fatal('Cannot retrieve devices from API endpoint')
@@ -101,7 +103,7 @@ class Api():
         Returns JSON data (dictionary) for the device with the given serial number
         """
 
-        logger.debug("Querying API for device asset details.")
+        logger.debug(" " * 8 + "Querying API for device asset details.")
         asset_data = self.session.get(config.API_BASE_URI + '/' + serial_number + '/asset').json()
 
         if 'code' in asset_data:
@@ -110,19 +112,19 @@ class Api():
 
         return asset_data
 
-    def get_agent_screenshot(self, device_name, agent_name):
+    def get_agent_screenshot(self, device, agent):
         """Search the XML API output for a screenshot URL for the device & agent.
 
-        Returns:  the screenshot URL as well as the error message and/or OCR.
+        Returns:  the screenshot as an HTML element
         """
 
-        logger.debug("Retrieving screenshot URL for %s on %s", agent_name, device_name)
+        logger.debug(" " * 8 + "Retrieving agent screenshot")
         # Find 'Device' elements.  If it matches, find the target agent and get screenshot URI.
         for xml_device in self.xml_api_root.findall('Device'):
 
             # Iterate through devices to find the target device
             xml_hostname = xml_device.find('Hostname')
-            if xml_hostname.text == device_name:
+            if xml_hostname.text == device:
 
                 # Iterate through device agents to find target agent
                 backup_volumes = xml_device.find('BackupVolumes')
@@ -130,23 +132,24 @@ class Api():
                     xml_agent_name = backup_volume.find('Volume')
 
                     # If agent name matches, get screenshot URI and return
-                    if xml_agent_name.text == agent_name:
-                        screenshot_uri = ""
-                        screenshot_uri = backup_volume.find('ScreenshotImagePath').text
+                    if xml_agent_name.text == agent:
+                        uri = backup_volume.find('ScreenshotImagePath').text
 
-                        #check to see if the old API is being used; correct if so
-                        if 'partners.dattobackup.com' in screenshot_uri:
-                            screenshot_uri = self.rebuild_screenshot_url(screenshot_uri)
+                        # check to see if the old API is being used; correct if so
+                        if 'partners.dattobackup.com' in uri:
+                            uri = self.rebuild_screenshot_url(uri)
 
                         if backup_volume.find('ScreenshotError').text:
-                            screenshot_error_message = backup_volume.find('ScreenshotError').text
+                            error = escape(backup_volume.find('ScreenshotError').text)
                         else:
-                            screenshot_error_message = "[error message not available]"
-                        return screenshot_uri, screenshot_error_message
-        return(-1, -1)
+                            error = "[error message not available]"
+                        screenshot = f'<a href="{uri}"><img src="{uri}" alt="" width="160" title="{error}"></img></a>'
+                        return screenshot
+        return(-1)
 
     def rebuild_screenshot_url(self, url):
         '''Rebuild the URL using the new images URL'''
+
         base_url = 'https://device.dattobackup.com/sirisReporting/images/latest'
         url_parsed = urlparse(url)
         image_name = url_parsed.query.split('/')[-1]

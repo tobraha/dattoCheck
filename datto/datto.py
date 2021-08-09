@@ -35,14 +35,15 @@ class DattoCheck():
             
             # Begin 
             device = Device(device, self.results)
-            logger.info('---- %s ----', device.name)
+            logger.debug('---- Device: %s ----', device.name)
 
             # Device checks
             if device.is_inactive():
-                logger.info('    Device is archived or paused')
+                logger.debug('    Device is archived or paused')
                 continue
             device.run_device_checks()
-            if device.is_offline: continue
+            if device.is_offline: 
+                continue
 
             # Agent checks
             asset_details = self.api.get_asset_details(device.serial_number)
@@ -52,13 +53,23 @@ class DattoCheck():
                               device,
                               self.results,
                               self.include_unprotected)
+                logger.debug('    ---- Agent: %s ----', agent.name)
+                if agent.is_inactive():
+                    logger.debug(' ' * 8 + 'Agent is archived or paused')
+                    continue
                 agent.run_agent_checks()
+        self.api.session_close()
+        logger.info('All checks complete')
 
-        # Main loop done
+        # Main loop done; send report
         if config.EMAIL_TO:
             mailer = Email()
+
             d = datetime.today()
             subject = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
+
+            report = mailer.build_html_report(self.results.results)
+            mailer.send_email(config.EMAIL_TO, config.EMAIL_FROM, subject, report)
 
 class Results():
 
@@ -87,7 +98,8 @@ class Results():
                         },
                         'verification_error': {
                             'name' : 'Local Verification Issues',
-                            'columns' : ['Appliance', 'Agent', 'Error', 'Details']
+                            'columns' : ['Appliance', 'Agent', 'Error', 'Details'],
+                            'errors' : []
                         },
                         'informational': {
                             'name' : 'Informational',

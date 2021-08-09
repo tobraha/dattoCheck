@@ -47,10 +47,11 @@ def main():
     if args.verbose:
         handler = StreamHandler(sys.stdout)
         handler.setLevel(DEBUG)
-        formatter = Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = Formatter('%(asctime)s - [%(levelname)s] %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
+    logger.info('Starting Datto check')
     datto_check = DattoCheck(args.unprotected_volumes)
     datto_check.run()
     return 0

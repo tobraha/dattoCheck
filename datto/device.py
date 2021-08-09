@@ -21,7 +21,7 @@ class Device(Base):
         super()
         self.results = results
         self.name = device['name']
-        self.hidden = True if device['hidden'] == 'true' else False
+        self.hidden = True if device['hidden'] else False
         self.active_tickets = device['activeTickets']
         self.last_seen_date = device['lastSeenDate']
         self.is_offline = False

@@ -38,15 +38,16 @@ class Agent(Base):
         self.latest_offsite = agent['latestOffsite']
         self.last_snapshot = agent['lastSnapshot']
         self.last_screenshot_attempt = agent['lastScreenshotAttempt']
-        self.last_screenshot_attempt_status = agent['lastScreenshotAttemptStatus']
+        self.last_screenshot_status = agent['lastScreenshotAttemptStatus']
         self.last_screenshot_url = agent['lastScreenshotUrl']
         self.fqdn = agent['fqdn']
         self.backups = agent['backups']
         self.type = agent['type']
         try:
             self.last_backup = self.backups[0]
-            self.last_backup_status = self.last_backup['status']
+            self.last_backup_status = self.last_backup['backup']['status']
             self.last_backup_error = self.last_backup['backup']['errorMessage']
+            self.verification_errors = self.last_backup['localVerification']['errors']
         except IndexError:
             error_text = 'Agent does not seem to have any backups'
             logger.debug(' ' * 8 + '%s', error_text)
@@ -133,28 +134,30 @@ class Agent(Base):
                                       self.name, error_text, '', 'red'])
                 else:
                     self.results.append_error(['screenshot_error', self.device.name,
-                                      self.name, error_text, ''])
-                logger.debug("%s - %s", self.name, error_text)
+                                      self.name, error_text])
+                logger.debug(' ' * 8 + '%s', error_text)
 
     def check_last_screenshot_status(self):
         "Check status of last screenshot attempt"
 
-        if not self.backup_failure and self.type == 'agent' and not self.last_screenshot_attempt_status:
+        if not self.backup_failure and self.type == 'agent' and not self.last_screenshot_status:
             error_text = 'Last screenshot attempt failed!'
-            screenshot_uri, screenshot_error = self.api.get_agent_screenshot(self.device.name,
-                                                                             self.name)
-            if screenshot_uri == -1: screenshot_uri,screenshot_error = "",""
-            self.results.append_error(['screenshot_error', self.device.name, self.name,
-                              screenshot_uri, escape(screenshot_error)])
-            logger.debug("%s - %s", self.name, error_text)
+            screenshot = self.api.get_agent_screenshot(self.device.name, self.name)
+
+            self.results.append_error(['screenshot_error',
+                                       self.device.name,
+                                       self.name,
+                                       screenshot])
+            logger.debug(' ' * 8 + '%s', error_text)
 
     def check_local_verification(self):
-        # check local verification and report any errors
-        if not self.backup_failure and self.type == 'agent' and self.backups and self.backups[0]['localVerification']['errors']:
-            for error in self.backups[0]['localVerification']['errors']:
+        "Check local verification and report any errors"
+
+        if not self.backup_failure and self.type == 'agent' and self.backups and self.verification_errors:
+            for error in self.verification_errors:
                 error_text = 'Local Verification Failure!\n{}\n{}'.format(error['errorType'],error['errorMessage'])
                 self.results.append_error(['verification_error', self.device.name, self.name, error['errorType'], error['errorMessage']])
-                logger.debug("%s - %s", self.name, error_text)
+                logger.debug(' ' * 8 + '%s', error_text)
 
     def check_unprotected_volumes(self):
         "Report any unprotected volumes if arg set to true"
@@ -162,7 +165,7 @@ class Agent(Base):
         if self.unprotected_volumes:
             error_text = 'Unprotected Volumes: {0}'.format(escape(','.join(self.unprotected_volumes)))
             self.results.append_error(['informational', self.device.name, self.name, error_text])
-            logger.debug("%s - %s", self.name, error_text)
+            logger.debug(' ' * 8 + '%s', error_text)
 
     def run_agent_checks(self):
         "Perform agent checks"
