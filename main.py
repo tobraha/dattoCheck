@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
-# Import
+# Import: standard
 import sys
 from argparse import ArgumentParser
 import logging
-from datto import DattoCheck
-import config
-
 from logging import StreamHandler, DEBUG, INFO, Formatter
 from logging.handlers import RotatingFileHandler
+
+# Import: local
+import config
+from datto import DattoCheck
+
 
 def main():
     """Main"""
@@ -30,7 +32,7 @@ def main():
                         action='store_true')
     parser.add_argument('-u', '--unprotected-volumes', help='Include \
         any unprotected volumes in the final report',
-        action='store_true')
+                        action='store_true')
 
     args = parser.parse_args()
 
@@ -56,6 +58,6 @@ def main():
     datto_check.run()
     return 0
 
-# Main
+
 if __name__ == '__main__':
     sys.exit(main())

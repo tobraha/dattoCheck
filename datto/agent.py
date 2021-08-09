@@ -14,6 +14,7 @@ from datto.base import Base
 
 logger = logging.getLogger("Datto Check")
 
+
 class Agent(Base):
     "Datto Agent"
 
@@ -57,10 +58,7 @@ class Agent(Base):
     def is_inactive(self):
         """Check agent paused and archive status to determine
         whether or not the agent is active."""
-        if self.is_archived or self.is_paused:
-            return True
-        else:
-            return False
+        return (self.is_archived or self.is_paused)
 
     def check_last_backup_time(self):
         """Check if the most recent backup was more
@@ -83,17 +81,17 @@ class Agent(Base):
             self.backup_failure = True
 
             error_data = ['backup_error',
-                            self.device.name,
-                            self.name,
-                            '{}'.format(last_snapshot_time),
-                            backup_error]
+                          self.device.name,
+                          self.name,
+                          '{}'.format(last_snapshot_time),
+                          backup_error]
 
             if time_diff > config.ACTIONABLE_THRESHOLD and self.last_snapshot:
                 self.results.append_error(error_data, color='red')
             else:
                 self.results.append_error(error_data)
             logger.debug(' ' * 8 + 'Last scheduled backup at %s has failed (%s)',
-                            last_snapshot_time, backup_error)
+                         last_snapshot_time, backup_error)
 
     def check_last_offsite_time(self):
         "Check if latest off-site point exceeds LAST_OFFSITE_THRESHOLD"
@@ -111,10 +109,10 @@ class Agent(Base):
                 error_text = 'Last off-site: {} ago'.format(self.display_time(time_diff))
                 if time_diff > config.ACTIONABLE_THRESHOLD:
                     self.results.append_error(['offsite_error',
-                                      self.device.name,
-                                      self.name,
-                                      error_text],
-                                     'red')
+                                               self.device.name,
+                                               self.name,
+                                               error_text],
+                                              'red')
                 else:
                     self.results.append_error(['offsite_error', self.device.name, self.name, error_text])
                 logger.debug(' ' * 8 + '%s', error_text)
@@ -125,7 +123,7 @@ class Agent(Base):
         now = datetime.now(timezone.utc)
         if self.type == 'agent' and self.last_screenshot_attempt and not self.backup_failure:
             last_screenshot = datetime.fromtimestamp(self.last_screenshot_attempt,
-                                                              timezone.utc)
+                                                     timezone.utc)
             time_diff = (now - last_screenshot).total_seconds()
             if time_diff > config.LAST_SCREENSHOT_THRESHOLD:
                 error_text = 'Last screenshot was {} ago.'.format(self.display_time(time_diff))
@@ -176,6 +174,6 @@ class Agent(Base):
             self.check_last_screenshot_time()
             self.check_last_screenshot_status()
             self.check_local_verification()
-        
+
             if self.include_unprotected:
                 self.check_unprotected_volumes()

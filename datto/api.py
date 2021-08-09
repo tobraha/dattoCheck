@@ -20,14 +20,15 @@ import config
 # global logger
 logger = logging.getLogger("Datto Check")
 
+
 class DattoApiError(Exception):
-	"""Raised on errors encountered from the Datto API."""
-	pass
+    """Raised on errors encountered from the Datto API."""
+    pass
 
 
 class Api():
     """Datto API
-    
+
     Handles the communication with the Datto API.
     """
 

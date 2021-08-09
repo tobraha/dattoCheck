@@ -4,7 +4,6 @@
 
 # Import: standard
 import logging
-import smtplib
 from datetime import datetime
 
 # Import: local
@@ -15,6 +14,7 @@ from datto.device import Device
 from datto.agent import Agent
 
 logger = logging.getLogger("Datto Check")
+
 
 class DattoCheck():
     "Handles the main functions of the script."
@@ -32,8 +32,8 @@ class DattoCheck():
         # Main loop
         devices = self.api.get_devices()
         for device in devices:
-            
-            # Begin 
+
+            # Begin
             device = Device(device, self.results)
             logger.debug('---- Device: %s ----', device.name)
 
@@ -42,7 +42,7 @@ class DattoCheck():
                 logger.debug('    Device is archived or paused')
                 continue
             device.run_device_checks()
-            if device.is_offline: 
+            if device.is_offline:
                 continue
 
             # Agent checks
@@ -71,6 +71,7 @@ class DattoCheck():
             report = mailer.build_html_report(self.results.results)
             mailer.send_email(config.EMAIL_TO, config.EMAIL_FROM, subject, report)
 
+            
 class Results():
 
     def __init__(self):

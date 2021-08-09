@@ -1,10 +1,15 @@
+# Import: standard
+
 import logging
 import smtplib
-import config
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+# Import: local
+import config
+
 logger = logging.getLogger("Datto Check")
+
 
 class Email():
 
@@ -81,9 +86,9 @@ class Email():
                 table += '<tr style="background-color: {0};">'.format(error[-1])
             else:
                 table += '<tr>'
-            
+
             for col in range(1, len(category['columns']) + 1):
-                
+
                 if category_name == 'screenshot_error' and col == 3 and 'http' in error[-1]:
                     table += f'<td width="160">{error[col]}</td>'
                 else:
