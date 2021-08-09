@@ -69,7 +69,7 @@ class DattoCheck():
             subject = 'Daily Datto Check: {}'.format(d.strftime('%m/%d/%Y'))
 
             report = mailer.build_html_report(self.results.results)
-            mailer.send_email(config.EMAIL_TO, config.EMAIL_FROM, subject, report)
+            mailer.send_email(config.EMAIL_TO, config.EMAIL_FROM, subject, report, config.EMAIL_CC)
 
             
 class Results():

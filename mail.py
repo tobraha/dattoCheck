@@ -2,6 +2,7 @@
 
 import logging
 import smtplib
+import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -22,12 +23,17 @@ class Email():
 
     def send_email(self, email_to, email_from, subject, body, email_cc=None):
 
-        msg = MIMEMultipart()
-        msg['Subject'] = subject
-        msg['From'] = email_from
-        msg['To'] = ', '.join(email_to)
-        if config.EMAIL_CC:
-            msg['Cc'] = ', '.join(email_cc)
+        try:
+            msg = MIMEMultipart()
+            msg['Subject'] = subject
+            msg['From'] = email_from
+            msg['To'] = ', '.join(email_to)
+            if email_cc:
+                msg['Cc'] = ', '.join(email_cc)
+        except TypeError:
+            logger.fatal('[!] Unable to add email recipients. Ensure to/from are iterable types')
+            sys.exit(-1)
+
         msg.attach(MIMEText(body, 'html'))
 
         # Send email
@@ -36,13 +42,14 @@ class Email():
         try:
             if  self.starttls:
                 s.starttls()
-            if  config.EMAIL_PW:
+            if  self.password:
                 s.login(self.user, self.password)
             s.send_message(msg)
             s.quit()
             logger.info("Email report sent.")
         except Exception as e:
-            logger.critical("Failed to send email message:\n  %s", str(e))
+            logger.fatal("Failed to send email message:\n  %s", str(e))
+            sys.exit(-1)
 
     def build_html_report(self, results_data):
         "Compile our Datto Check results into an HTML report for emailing"
