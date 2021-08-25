@@ -35,7 +35,7 @@ ACTIONABLE_THRESHOLD = 60 * 60 * 24 * 7  # threshold for actionable alerts; one 
 
 # Logs - check if /var/log is writable. Otherwise, output to currnent directory
 if os.access('/var/log', os.W_OK):
-	LOG_DIR = Path("/var/log")
+    LOG_DIR = Path("/var/log")
 else:
-	LOG_DIR = Path(os.getcwd())
+    LOG_DIR = Path(os.getcwd())
 LOG_FILE = (LOG_DIR / 'datto_check.log')
