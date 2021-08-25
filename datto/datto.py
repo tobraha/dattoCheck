@@ -43,6 +43,7 @@ class DattoCheck():
                 continue
             device.run_device_checks()
             if device.is_offline:
+                logger.debug('    Device is offline; skipping remaining checks')
                 continue
 
             # Agent checks
@@ -71,41 +72,41 @@ class DattoCheck():
             report = mailer.build_html_report(self.results.results)
             mailer.send_email(config.EMAIL_TO, config.EMAIL_FROM, subject, report, config.EMAIL_CC)
 
-            
+
 class Results():
 
     def __init__(self):
         "Constructor"
         # initialize results_data, used for generating html report
         self.results = {'critical': {
-                            'name' : "CRITICAL ERRORS",
-                            'columns' : ['Appliance', 'Error Type', 'Error Details'],
-                            'errors' : []
+                            'name': "CRITICAL ERRORS",
+                            'columns': ['Appliance', 'Error Type', 'Error Details'],
+                            'errors': []
                         },
                         'backup_error': {
-                            'name' : "Backup Errors",
-                            'columns' : ['Appliance', 'Agent/Share', 'Last Backup', 'Error Details'],
-                            'errors' : []
+                            'name': "Backup Errors",
+                            'columns': ['Appliance', 'Agent/Share', 'Last Backup', 'Error Details'],
+                            'errors': []
                         },
                         'offsite_error': {
-                            'name' : 'Off-site Sync Issues',
-                            'columns' : ['Appliacne', 'Agent/Share', 'Error Details'],
-                            'errors' : []
+                            'name': 'Off-site Sync Issues',
+                            'columns': ['Appliacne', 'Agent/Share', 'Error Details'],
+                            'errors': []
                         },
                         'screenshot_error': {
-                            'name' : 'Screenshot Failures',
-                            'columns' : ['Appliance', 'Agent', 'Screenshot/Details'],
-                            'errors' : []
+                            'name': 'Screenshot Failures',
+                            'columns': ['Appliance', 'Agent', 'Screenshot/Details'],
+                            'errors': []
                         },
                         'verification_error': {
-                            'name' : 'Local Verification Issues',
-                            'columns' : ['Appliance', 'Agent', 'Error', 'Details'],
-                            'errors' : []
+                            'name': 'Local Verification Issues',
+                            'columns': ['Appliance', 'Agent', 'Error', 'Details'],
+                            'errors': []
                         },
                         'informational': {
-                            'name' : 'Informational',
-                            'columns' : ['Appliance', 'Agent/Share', 'Details'],
-                            'errors' : []
+                            'name': 'Informational',
+                            'columns': ['Appliance', 'Agent/Share', 'Details'],
+                            'errors': []
                         }
                         }
 

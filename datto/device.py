@@ -13,6 +13,7 @@ import config
 
 logger = logging.getLogger("Datto Check")
 
+
 class Device(Base):
     "Datto Device"
 
@@ -21,7 +22,7 @@ class Device(Base):
         super()
         self.results = results
         self.name = device['name']
-        self.hidden = True if device['hidden'] else False
+        self.hidden = bool(device['hidden'])
         self.active_tickets = device['activeTickets']
         self.last_seen_date = device['lastSeenDate']
         self.is_offline = False
@@ -29,19 +30,15 @@ class Device(Base):
         self.storage_used = int(device['localStorageUsed']['size'])
         self.serial_number = device['serialNumber']
 
-
     def is_inactive(self):
-        if self.hidden or self.name == 'backupDevice':
-            return True
-        else:
-            return False
+        return bool(self.hidden or self.name == 'backupDevice')
 
     def check_active_tickets(self):
         "Check whether the device has any active tickets open."
 
         if self.active_tickets:
             error_text = 'Device has {} active {}'.format(\
-                self.active_tickets, 'ticket' if self.active_tickets < 2 else 'tickets' )
+                self.active_tickets, 'ticket' if self.active_tickets < 2 else 'tickets')
             self.results.append_error(['informational', self.name, 'N/A', error_text])
             logger.debug('    %s', error_text)
 

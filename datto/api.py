@@ -6,13 +6,13 @@ handles communication with the Datto API.
 
 # Imports: Standard
 import logging
-import requests
 import sys
 import traceback
 from urllib.parse import urlparse
 from html import escape
-from retry import retry
 from xml.etree import ElementTree as ET
+import requests
+from retry import retry
 
 # Import: local
 import config
@@ -64,11 +64,9 @@ class Api():
             # TODO: send an email!
             sys.exit(-1)
 
-    @retry(DattoApiError, tries=3, delay=3)
+    @retry(DattoApiError, tries=3, delay=3, logger=logger)
     def get_devices(self):
-        """
-        Query API assets target to return all Datto Assets
-        """
+        "Query API assets target to return all Datto Assets"
 
         devices = []
         logger.info('Gathering devices info from API')
@@ -87,15 +85,14 @@ class Api():
                 logger.debug("Querying API for additional devices.")
                 assets = self.session.get(config.API_BASE_URI + '?_page=' + str(page)).json()
                 if 'code' in assets:
-                    logger.fatal('Error querying Datto API for additional devices')
-                    sys.exit(-1)
+                    raise DattoApiError('Error querying Datto API for additional devices')
                 devices.extend(assets['items'])
 
         # let's sort this thing!
         devices = sorted(devices, key=lambda i: i['name'].upper())
         return devices
 
-    @retry(DattoApiError, tries=3, delay=3)
+    @retry(DattoApiError, tries=3, delay=4, logger=logger)
     def get_asset_details(self, serial_number):
         """
         With a device serial number (argument), query the API with it
@@ -108,8 +105,7 @@ class Api():
         asset_data = self.session.get(config.API_BASE_URI + '/' + serial_number + '/asset').json()
 
         if 'code' in asset_data:
-            raise DattoApiError(f'Error encountered retrieving \
-            asset details for "{serial_number}"')
+            raise DattoApiError(f'    Failed to get asset details from API')
 
         return asset_data
 
