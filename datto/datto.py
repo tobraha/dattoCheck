@@ -90,7 +90,7 @@ class Results():
                         },
                         'offsite_error': {
                             'name': 'Off-site Sync Issues',
-                            'columns': ['Appliacne', 'Agent/Share', 'Error Details'],
+                            'columns': ['Appliance', 'Agent/Share', 'Error Details'],
                             'errors': []
                         },
                         'screenshot_error': {
