@@ -78,36 +78,42 @@ class Results():
     def __init__(self):
         "Constructor"
         # initialize results_data, used for generating html report
-        self.results = {'critical': {
+        self.results = {'critical':
+                            {
                             'name': "CRITICAL ERRORS",
                             'columns': ['Appliance', 'Error Type', 'Error Details'],
                             'errors': []
-                        },
-                        'backup_error': {
+                            },
+                        'backup_error':
+                            {
                             'name': "Backup Errors",
                             'columns': ['Appliance', 'Agent/Share', 'Last Backup', 'Error Details'],
                             'errors': []
-                        },
-                        'offsite_error': {
+                            },
+                        'offsite_error':
+                            {
                             'name': 'Off-site Sync Issues',
                             'columns': ['Appliance', 'Agent/Share', 'Error Details'],
                             'errors': []
-                        },
-                        'screenshot_error': {
+                            },
+                        'screenshot_error':
+                            {
                             'name': 'Screenshot Failures',
                             'columns': ['Appliance', 'Agent', 'Screenshot/Details'],
                             'errors': []
-                        },
-                        'verification_error': {
+                            },
+                        'verification_error':
+                            {
                             'name': 'Local Verification Issues',
                             'columns': ['Appliance', 'Agent', 'Error', 'Details'],
                             'errors': []
-                        },
-                        'informational': {
+                            },
+                        'informational':
+                            {
                             'name': 'Informational',
                             'columns': ['Appliance', 'Agent/Share', 'Details'],
                             'errors': []
-                        }
+                            }
                         }
 
     def append_error(self, error_detail, color=None):
