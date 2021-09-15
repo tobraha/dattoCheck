@@ -486,6 +486,16 @@ def build_html_email(results_data):
     # create initial html structure
     msg_body = '<html><head><style>table,th,td{border:1px solid black;border-collapse: collapse; text-align: left;}th{text-align:center;}</style></head><body>'
 
+    # update notice message
+    msg_body += '''<div style="width: 580px; display: block; margin: auto;"><p><i>NOTICE: This Datto check script will be updated on October 16,
+                   2021 at 02:00 UTC. This update will introduce changes
+                   that will require some reconfiguration of the script in order to continue
+                   to function properly. More info
+                   <a href="https://github.com/tobraha/dattoCheck/blob/master/NOTICE.md">here</a>.
+                   <br><br>
+                   <3 tobraha
+                   </i></p></div>'''.replace('\n', '')
+
     if results_data['critical']:
         msg_body += '<h1>CRITICAL ERRORS</h1><table>'
         msg_body += '<tr><th>Appliance</th><th>Error Type</th><th>Error Details</th></tr>'
