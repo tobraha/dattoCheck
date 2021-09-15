@@ -1,6 +1,9 @@
 # Configurations
 #
 # all runtime settings and configurations are defined in this file
+# NOTE
+# You MUST copy 'config-mk.py' to 'config.py' and edit that.
+# The 'config-mk.py' file will not be read by the program.
 
 import os
 from pathlib import Path
