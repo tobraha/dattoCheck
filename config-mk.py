@@ -29,16 +29,26 @@ EMAIL_SSL   = True
 
 
 # Error/Alert threshold settings
-CHECKIN_LIMIT = 60 * 20                  # threshold for device offline time
-STORAGE_PCT_THRESHOLD = 95               # threshold for local storage; in percent
-LAST_BACKUP_THRESHOLD = 60 * 60 * 12     # threshold for failed backup time
-LAST_OFFSITE_THRESHOLD = 60 * 60 * 72    # threshold for last successful off-site
-LAST_SCREENSHOT_THRESHOLD = 60 * 60 * 48 # threshold for last screenshot taken
-ACTIONABLE_THRESHOLD = 60 * 60 * 24 * 7  # threshold for actionable alerts; one week
+CHECKIN_LIMIT = 60 * 20                  # device offline time; 20 minutes
+STORAGE_PCT_THRESHOLD = 95               # local storage; in percent
+LAST_BACKUP_THRESHOLD = 60 * 60 * 12     # failed backup time; 12 hrs
+LAST_OFFSITE_THRESHOLD = 60 * 60 * 72    # last successful off-site; 72 hrs
+LAST_SCREENSHOT_THRESHOLD = 60 * 60 * 48 # last screenshot taken; 48 hrs
+ACTIONABLE_THRESHOLD = 60 * 60 * 24 * 7  # actionable alerts; 7 days
 
-# Logs - check if /var/log is writable. Otherwise, output to currnent directory
-if os.access('/var/log', os.W_OK):
-    LOG_DIR = Path("/var/log")
+# Log file location
+if os.name != 'nt':
+    if os.access('/var/log', os.W_OK):
+        # default
+        LOG_DIR = Path("/var/log")
+    elif os.access(os.getcwd(), os.W_OK):
+        # fallback
+        LOG_DIR = Path(os.getcwd())
+    else:
+        # last resort
+        LOG_DIR = Path('/tmp')
 else:
+    # for Windows, use current directory
     LOG_DIR = Path(os.getcwd())
+
 LOG_FILE = (LOG_DIR / 'datto_check.log')
