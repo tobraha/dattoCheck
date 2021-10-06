@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 
-# Import
+# Import: standard
 import sys
-import argparse
+from argparse import ArgumentParser
 import logging
-from datto import DattoCheck
-from config import InvalidEmailSettings, LOG_FILE
-
 from logging import StreamHandler, DEBUG, INFO, Formatter
 from logging.handlers import RotatingFileHandler
 
-def main():
-    """Main entry.
+# Import: local
+import config
+from datto import DattoCheck
 
-    Parse command line arguments.
-    Basic checks on CLI input.
-    Initialize and run."""
+
+def main():
+    """Main"""
+
     __authors__ = ['Tommy Harris', 'Ryan Shoemaker']
     __date__ = 'September 8, 2019'
     __description__ = """Using the Datto API, get information on current status \
@@ -23,56 +22,24 @@ def main():
 
     To send the results as an email, provide the optional email parameters."""
 
-    parser = argparse.ArgumentParser(description=__description__,
-                                     epilog='Developed by {} on \
-                                     {}'.format(", ".join(__authors__), __date__))
-
-    # Add positional arguments
-    parser.add_argument('AUTH_USER', help='Datto API User (REST API Public Key)')
-    parser.add_argument('AUTH_PASS', help='Datto API Password (REST API Secret Key')
-    parser.add_argument('XML_API_KEY', help='Datto XML API Key')
+    parser = ArgumentParser(description=__description__,
+                            epilog='Developed by {} on \
+                            {}'.format(", ".join(__authors__), __date__))
 
     # "Optional" arguments
     parser.add_argument('-v', '--verbose',
                         help='Print verbose output to stdout',
                         action='store_true')
-    parser.add_argument('--send-email',
-                        help='Set this flag to send an email.  \
-                        Below parameters required if set',
-                        action='store_true')
-    parser.add_argument('--email-to',
-                        help='Email address to send message to. \
-                        Use more than once for multiple recipients.',
-                        action='append')
-    parser.add_argument('--email-cc',
-                        help='(OPTIONAL) Email address to CC. \
-                        Use more than once for multiple recipients.',
-                        action='append')
-    parser.add_argument('--email-from', help='Email address to send message from')
-    parser.add_argument('--email-pw', help='Password to use for authentication')
-    parser.add_argument('--mx-endpoint', help='MX Endpoint of where to send the email')
-    parser.add_argument('--smtp-port',
-                        help='TCP port to use when sending the email; default=25',
-                        choices=['25', '465', '587'],
-                        default='25')
-    parser.add_argument('--starttls', help='Specify whether to use \
-        STARTTLS or not', action='store_true')
-    parser.add_argument('--unprotected-volumes', '-u', help='Include \
+    parser.add_argument('-u', '--unprotected-volumes', help='Include \
         any unprotected volumes in the final report',
-        action='store_true')
+                        action='store_true')
 
     args = parser.parse_args()
-
-    # args sanity check
-    if args.send_email:
-        if not args.email_from or not args.email_to or not args.mx_endpoint:
-            raise InvalidEmailSettings("You must have at least a \
-            sender, recipient, and MX endpoint.")
 
     # Add rotating log
     logger = logging.getLogger("Datto Check")
     logger.setLevel(DEBUG)
-    handler = RotatingFileHandler(LOG_FILE, maxBytes=30000, backupCount=3)
+    handler = RotatingFileHandler(config.LOG_FILE, maxBytes=30000, backupCount=3)
     handler.setLevel(INFO)
     formatter = Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -82,14 +49,15 @@ def main():
     if args.verbose:
         handler = StreamHandler(sys.stdout)
         handler.setLevel(DEBUG)
-        formatter = Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = Formatter('%(asctime)s - [%(levelname)s] %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    datto_check = DattoCheck(args)
+    logger.info('Starting Datto check')
+    datto_check = DattoCheck(args.unprotected_volumes)
     datto_check.run()
     return 0
 
-# Main
+
 if __name__ == '__main__':
     sys.exit(main())

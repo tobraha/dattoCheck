@@ -9,3 +9,4 @@ class Datto() - session & communication with the API
 class DattoCheck() - operational functions to run the checks"""
 
 from .datto import DattoCheck
+from .api import Api
