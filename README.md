@@ -6,7 +6,7 @@ sync issues, low disk space, etc.). This tool defines error thresholds for thing
 last device checkin, time since last successful backup, etc. and queries Datto's API for your device info and sends
 an email with the results that looks something like this:
 
-![Screenshot of report output message](https://github.com/tobraha/dattoCheck/blob/refactor/screenshots/html-report.png)
+![Screenshot of report output message](https://github.com/tobraha/dattoCheck/blob/master/screenshots/html-report.png)
 
 When building this, I did not have running this on Windows in mind, so I have only tested this on Linux.
 
