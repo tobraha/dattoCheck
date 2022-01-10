@@ -1,3 +1,20 @@
+# So Long, Friends
+
+### _10 January, 2022_
+
+As I am entirely oblivious to how many people might be using this tool, I
+say to anyone who might come across this:
+
+Due to a few recent shifts of employers and a couple of role changes,
+I find myself without access to a Datto Partner Portal account. That said, I will be
+archiving this repository as of today.
+
+If you do use this tool and need some assistance, I will always be happy to help. Contact me here
+on GitHub or via email, which is on my [GitHub profile](https://github.com/tobraha).
+
+Sincerely,  
+-Tommy
+
 # Overview
 
 The purpose of this is to automate a daily check of a fleet of Datto Appliances using Datto's REST API. I used to
